@@ -31,7 +31,7 @@ namespace CommunityRaces
 
 			// UI DRAWING
 			var safe = UIMenu.GetSafezoneBounds();
-			var res = UIMenu.GetScreenResolutionMantainRatio();
+			var res = UIMenu.GetScreenResolutionMaintainRatio();
 
 			new UIResText(settingsForRace.Name, new Point(safe.X, safe.Y), 0.8f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) { Outline = true}.Draw();
 			new UIResText(settingsForRace.Description, new Point(safe.X, 50 + safe.Y), 0.4f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) {WordWrap = new Size(Convert.ToInt32(res.Width) - (safe.X*2),0), Outline = true}.Draw();

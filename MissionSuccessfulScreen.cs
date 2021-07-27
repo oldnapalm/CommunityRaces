@@ -44,7 +44,7 @@ namespace CommunityRaces
 		{
 			if (!Visible) return;
 
-			SizeF res = UIMenu.GetScreenResolutionMantainRatio();
+			SizeF res = UIMenu.GetScreenResolutionMaintainRatio();
 			int middle = Convert.ToInt32(res.Width / 2);
 
 			new Sprite("mpentry", "mp_modenotselected_gradient", new Point(0, 10), new Size(Convert.ToInt32(res.Width), 450 + (_items.Count * 40)),
@@ -91,8 +91,7 @@ namespace CommunityRaces
 
 			new Sprite("mpmissionend", medalSprite, new Point(middle + 150, 320 + (40 * _items.Count)), new Size(32, 32)).Draw();
 
-			var scaleform = new Scaleform(0);
-			scaleform.Load("instructional_buttons");
+			var scaleform = new Scaleform("instructional_buttons");
 			scaleform.CallFunction("CLEAR_ALL");
 			scaleform.CallFunction("TOGGLE_MOUSE_BUTTONS", 0);
 			scaleform.CallFunction("CREATE_CONTAINER");

@@ -7,8 +7,6 @@ using System.Xml.Serialization;
 using GTA;
 using GTA.Math;
 using GTA.Native;
-using MapEditor;
-using MapEditor.API;
 using NativeUI;
 using Font = GTA.Font;
 
@@ -37,6 +35,7 @@ namespace CommunityRaces
 		private List<Vector3> _checkpoints = new List<Vector3>();
 
 		private readonly List<Race> _races = new List<Race>();
+		private readonly List<Blip> _racesBlips = new List<Blip>();
 		private readonly List<Entity> _cleanupBag = new List<Entity>();
 		private readonly List<Vehicle> _participants = new List<Vehicle>();
 		private readonly List<Rival> _currentRivals = new List<Rival>();
@@ -49,7 +48,8 @@ namespace CommunityRaces
 		public CommunityRaces()
 	    {
 		    Tick += OnTick;
-		    int racesLoaded = LoadRaces();
+			Aborted += OnAbort;
+			int racesLoaded = LoadRaces();
 
 			_quitMenu = new UIMenu("", "~r~ARE YOU SURE YOU WANT TO QUIT?", new Point(0, -107));
 			var qitem = new UIMenuItem("Quit current race.");
@@ -78,27 +78,11 @@ namespace CommunityRaces
 			    var tmpBlip = World.CreateBlip(race.Trigger);
 			    tmpBlip.IsShortRange = true;
 				tmpBlip.Sprite = BlipSprite.Race;
+				tmpBlip.Name = "Community Race: " + race.Name;
+				_racesBlips.Add(tmpBlip);
 		    }
 		    UI.Notify("~b~~h~Community Races~h~~n~~w~Loaded ~b~" + racesLoaded + "~w~ race(s).");
-
-		    if (File.Exists("scripts\\MapEditor.dll"))
-				AttachMapEditor();
 	    }
-
-		/// <summary>
-		/// This method is encapsulated, so if MapEditor.dll is missing, the script won't crash!
-		/// </summary>
-	    private void AttachMapEditor()
-	    {
-			var thisMod = new ModListener()
-			{
-				ButtonString = "Create a Community Race",
-				Description = "Create a race for the Community Races mod.",
-				Name = "Community Races",
-			};
-			ModManager.SuscribeMod(thisMod);
-			thisMod.OnMapSaved += SaveMap;
-		}
 
 	    private int LoadRaces()
 	    {
@@ -159,7 +143,6 @@ namespace CommunityRaces
 			    World.Weather = wout;
 		    }
 
-		    
 			switch ((string)_raceSettings["TOD"])
 			{
 				case "Current":
@@ -178,15 +161,11 @@ namespace CommunityRaces
 					break;
 			}
 
-
-
-
 			List<SpawnPoint> availalbleSpawnPoints = new List<SpawnPoint>(race.SpawnPoints);
 
 		    int spawnId = RandGen.Next(availalbleSpawnPoints.Count);
             var spawn = availalbleSpawnPoints[spawnId];
 			availalbleSpawnPoints.RemoveAt(spawnId);
-
 
 		    var car = _previewVehicle;
 		    car.Position = spawn.Position;
@@ -263,7 +242,7 @@ namespace CommunityRaces
 			    _lasttime = DateTime.Now;
 			    if (_isInRace && _countdown > 0)
 			    {
-				    var screen = UIMenu.GetScreenResolutionMantainRatio();
+					var screen = UIMenu.GetScreenResolutionMaintainRatio();
 				    var w = Convert.ToInt32(screen.Width/2);
 				    _countdown--;
 					if(_countdown > 3) return;
@@ -296,7 +275,7 @@ namespace CommunityRaces
 
 			if (_countdown > -1 && _countdown <= 3)
 		    {
-				var screen = UIMenu.GetScreenResolutionMantainRatio();
+				var screen = UIMenu.GetScreenResolutionMaintainRatio();
 				var w = Convert.ToInt32(screen.Width / 2);
 				new UIResText(_countdown == 0 ? "GO" : _countdown.ToString(), new Point(w, 260), 2f, Color.White, Font.Pricedown, UIResText.Alignment.Centered).Draw();
 		    }
@@ -313,16 +292,15 @@ namespace CommunityRaces
 				if(GUI.IsInMenu) return;
 			    foreach (var race in _races)
 			    {
-				    World.DrawMarker(MarkerType.VerticalCylinder, race.Trigger, new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector3(5f, 5f, 1f), Color.FromArgb(200, 255, 255, 255));
-					if(!Game.Player.Character.IsInRangeOf(race.Trigger, 50f)) continue;
-				    var tmpSF = new Scaleform(0);
-				    tmpSF.Load("PLAYER_NAME_01");
+					if (!Game.Player.Character.IsInRangeOf(race.Trigger, 50f)) continue;
+					World.DrawMarker(MarkerType.VerticalCylinder, race.Trigger, new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector3(5f, 5f, 1f), Color.FromArgb(200, 255, 255, 255));
+					if (!Game.Player.Character.IsInRangeOf(race.Trigger, 10f)) continue;
+					var tmpSF = new Scaleform("PLAYER_NAME_01");
 					tmpSF.CallFunction("SET_PLAYER_NAME", race.Name);
 				    
 					tmpSF.Render3D(race.Trigger + new Vector3(0f, 0f, 2f), new Vector3(0f, 0f, _oldAngle), new Vector3(12, 6, 2));
 
-					var tmpT = new Scaleform(0);
-					tmpT.Load("PLAYER_NAME_02");
+					var tmpT = new Scaleform("PLAYER_NAME_02");
 					tmpT.CallFunction("SET_PLAYER_NAME", "Community Race");
 
 					tmpT.Render3D(race.Trigger + new Vector3(0f, 0f, 1.5f), new Vector3(0f, 0f, _oldAngle), new Vector3(6, 3, 1));
@@ -352,9 +330,9 @@ namespace CommunityRaces
 		    {
 				if(!_raceSettings["Wanted"])
 					Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
-				//if(Game.Player.Character.IsInVehicle())
-				Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
-			    if ((Game.IsControlJustPressed(0, GTA.Control.VehicleExit) && Game.Player.Character.IsInVehicle()) || (!Game.Player.Character.IsInVehicle() && !Game.Player.Character.IsGettingIntoAVehicle && Game.IsControlJustPressed(0, GTA.Control.Enter)))
+				if(Game.Player.Character.IsInVehicle())
+					Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
+			    if ((Game.IsControlJustPressed(0, Control.VehicleExit) && Game.Player.Character.IsInVehicle()) || (!Game.Player.Character.IsInVehicle() && !Game.Player.Character.IsGettingIntoAVehicle && Game.IsControlJustPressed(0, Control.Enter)))
 			    {
 					_quitMenu.RefreshIndex();
 				    _quitMenu.Visible = !_quitMenu.Visible;
@@ -372,7 +350,7 @@ namespace CommunityRaces
 				    }
 			    }
 
-			    var res = UIMenu.GetScreenResolutionMantainRatio();
+				var res = UIMenu.GetScreenResolutionMaintainRatio();
 			    var safe = UIMenu.GetSafezoneBounds();
 			    const int interval = 45;
 			    if (_countdown <= 0)
@@ -396,7 +374,6 @@ namespace CommunityRaces
 				    }
 			    }
 
-
 			    for (int i = 0; i < _rivalCheckpointStatus.Count; i++)
 			    {
 				    Tuple<Rival, int> tuple = _rivalCheckpointStatus[i];
@@ -416,7 +393,6 @@ namespace CommunityRaces
 						    _currentRace.Checkpoints[tuple.Item2 + 1].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0); // TODO: Debuggin // old - 6
 				    }
 			    }
-
 
 			    World.DrawMarker(MarkerType.VerticalCylinder, _checkpoints[0], new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector3(10f, 10f, 2f), Color.FromArgb(100, 241, 247, 57));
 			    if (_nextBlip == null)
@@ -487,54 +463,23 @@ namespace CommunityRaces
 			}
 	    }
 
-	    public string FormatTime(int seconds)
+		private void OnAbort(object sender, EventArgs e)
+		{
+			Tick -= OnTick;
+			EndRace();
+			_races.Clear();
+			foreach (var blip in _racesBlips)
+				blip.Remove();
+			_racesBlips.Clear();
+		}
+
+		public string FormatTime(int seconds)
 	    {
 		    var minutes = Convert.ToInt32(Math.Floor(seconds/60f));
 		    var secs = seconds%60;
 		    return String.Format("{0:00}:{1:00}", minutes, secs);
 	    }
 
-	    public void SaveMap(Map map, string filename)
-	    {
-		    if (!filename.EndsWith(".xml"))
-			    filename += ".xml";
-		    Race tmpRace = new Race
-		    {
-			    AvailableVehicles =
-				    map.Objects.Where(obj => obj.Type == ObjectTypes.Vehicle)
-					    .Select(obj => (VehicleHash) obj.Hash)
-					    .Distinct()
-					    .ToArray(),
-			    Checkpoints = map.Markers.Select(mar => mar.Position).ToArray()
-		    };
-		    var props = map.Objects.Where(obj => obj.Type == ObjectTypes.Prop).ToArray();
-			SavedProp[] tmpProps = new SavedProp[props.Length];
-		    for (int i = 0; i < props.Length; i++)
-		    {
-			    tmpProps[i] = new SavedProp()
-			    {
-				    Dynamic = props[i].Dynamic,
-					Hash = props[i].Hash,
-					Position = props[i].Position,
-					Rotation = props[i].Rotation,
-			    };
-		    }
-		    tmpRace.DecorativeProps = tmpProps;
-		    tmpRace.Trigger = map.Objects.First(obj => obj.Type == ObjectTypes.Ped).Position - new Vector3(0f, 0f, 1f);
-		    tmpRace.SpawnPoints = map.Objects.Where(obj => obj.Type == ObjectTypes.Vehicle).Select(obj =>new SpawnPoint() {Position = obj.Position, Heading = obj.Rotation.Z}).ToArray();
-		    tmpRace.Name = "Nameless Map";
-		    tmpRace.Description = "Cool race!";
-
-			XmlSerializer serializer = new XmlSerializer(typeof(Race));
-		    if (!Directory.Exists("scripts\\Races"))
-			    Directory.CreateDirectory("scripts\\Races");
-			StreamWriter writer = new StreamWriter("scripts\\Races\\" + filename);
-			serializer.Serialize(writer, tmpRace);
-			writer.Close();
-		    UI.Notify("~b~~h~Community Races~h~~n~~w~Race saved as ~h~" + filename + "~h~!");
-		    UI.Notify("Don't forget to include your name and the map description in the file!");
-	    }
-		
 		public void BuildMenu(Race race)
 		{
 			GUI.MainMenu.Clear();
@@ -555,7 +500,7 @@ namespace CommunityRaces
 			var timeItem = new UIMenuListItem("Time of Day", timeList, 0);
 			timeItem.OnListChanged += (item, index) =>
 			{
-				_raceSettings["TOD"] = item.IndexToItem(index);
+				_raceSettings["TOD"] = item.Items[index];
 			};
 
 			var weatherList = new List<dynamic> { "Current" };
@@ -563,7 +508,7 @@ namespace CommunityRaces
 			var weatherItem = new UIMenuListItem("Weather", weatherList, 0);
 			weatherItem.OnListChanged += (item, index) =>
 			{
-				_raceSettings["Weather"] = item.IndexToItem(index);
+				_raceSettings["Weather"] = item.Items[index];
 			};
 
 			var copItem = new UIMenuCheckboxItem("Wanted Levels", false);
@@ -577,7 +522,7 @@ namespace CommunityRaces
 			var opponentsItem = new UIMenuListItem("Number of Opponents", opponentsList, 0);
 			opponentsItem.OnListChanged += (item, index) =>
 			{
-				_raceSettings["Opponents"] = item.IndexToItem(index);
+				_raceSettings["Opponents"] = item.Items[index];
 			};
 
 			var trafficItem = new UIMenuCheckboxItem("Traffic", true);
@@ -592,7 +537,7 @@ namespace CommunityRaces
 			carItem.OnListChanged += (item, index) =>
 			{
 				VehicleHash outHash;
-				Enum.TryParse(item.IndexToItem(index).ToString(), out outHash);
+				Enum.TryParse(item.Items[index].ToString(), out outHash);
 				var oldC = _previewVehicle.PrimaryColor;
 				_previewVehicle?.Delete();
 				_previewVehicle = World.CreateVehicle(Helpers.RequestModel((int) outHash), race.Trigger);
@@ -619,7 +564,7 @@ namespace CommunityRaces
 			colorItem.OnListChanged += (ite, index) =>
 			{
 				VehicleColor outHash;
-				Enum.TryParse(ite.IndexToItem(index).ToString(), out outHash);
+				Enum.TryParse(ite.Items[index].ToString(), out outHash);
 				_previewVehicle.PrimaryColor = outHash;
 				_previewVehicle.SecondaryColor = outHash;
 			};
@@ -639,7 +584,6 @@ namespace CommunityRaces
 				World.RenderingCamera = null;
 				GUI.IsInMenu = false;
 				Game.Player.CanControlCharacter = true;
-				_previewVehicle?.Delete();
 			};
 
 			GUI.MainMenu.AddItem(timeItem);
@@ -656,7 +600,7 @@ namespace CommunityRaces
 				var lapItem = new UIMenuListItem("Laps", lapList, 0);
 				lapItem.OnListChanged += (item, index) =>
 				{
-					_raceSettings["Laps"] = item.IndexToItem(index);
+					_raceSettings["Laps"] = item.Items[index];
 				};
 				GUI.MainMenu.AddItem(lapItem);
 			}
