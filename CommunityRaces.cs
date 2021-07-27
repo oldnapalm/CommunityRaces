@@ -62,6 +62,8 @@ namespace CommunityRaces
 				Game.Player.Character.Position = _currentRace.Trigger;
 				EndRace();
 				Game.FadeScreenIn(500);
+				if (!_racesBlips.Any())
+					AddRacesBlips();
 			};
             _quitMenu.AddItem(qitem);
 			var citem = new UIMenuItem("Cancel.");
@@ -73,18 +75,31 @@ namespace CommunityRaces
 			_quitMenu.RefreshIndex();
 			_quitMenu.SetBannerType(new UIResRectangle());
 
-		    foreach (Race race in _races)
-		    {
-			    var tmpBlip = World.CreateBlip(race.Trigger);
-			    tmpBlip.IsShortRange = true;
-				tmpBlip.Sprite = BlipSprite.Race;
-				tmpBlip.Name = "Community Race: " + race.Name;
-				_racesBlips.Add(tmpBlip);
-		    }
-		    UI.Notify("~b~~h~Community Races~h~~n~~w~Loaded ~b~" + racesLoaded + "~w~ race(s).");
+			AddRacesBlips();
+
+			UI.Notify("~b~~h~Community Races~h~~n~~w~Loaded ~b~" + racesLoaded + "~w~ race(s).");
 	    }
 
-	    private int LoadRaces()
+		private void AddRacesBlips()
+        {
+			foreach (Race race in _races)
+			{
+				var blip = World.CreateBlip(race.Trigger);
+				blip.IsShortRange = true;
+				blip.Sprite = BlipSprite.Race;
+				blip.Name = "Community Race: " + race.Name;
+				_racesBlips.Add(blip);
+			}
+		}
+
+		private void RemoveRacesBlips()
+        {
+			foreach (Blip blip in _racesBlips)
+				blip.Remove();
+			_racesBlips.Clear();
+		}
+
+		private int LoadRaces()
 	    {
 		    int counter = 0;
 		    if(!Directory.Exists("scripts\\Races")) return 0;
@@ -468,9 +483,7 @@ namespace CommunityRaces
 			Tick -= OnTick;
 			EndRace();
 			_races.Clear();
-			foreach (var blip in _racesBlips)
-				blip.Remove();
-			_racesBlips.Clear();
+			RemoveRacesBlips();
 		}
 
 		public string FormatTime(int seconds)
@@ -576,6 +589,7 @@ namespace CommunityRaces
 				GUI.IsInMenu = false;
 				Game.Player.CanControlCharacter = true;
 				World.RenderingCamera = null;
+				RemoveRacesBlips();
 				StartRace(race);
 			};
 
