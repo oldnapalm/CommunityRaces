@@ -62,8 +62,6 @@ namespace CommunityRaces
 				Game.Player.Character.Position = _currentRace.Trigger;
 				EndRace();
 				Game.FadeScreenIn(500);
-				if (!_racesBlips.Any())
-					AddRacesBlips();
 			};
 			_quitMenu.AddItem(qitem);
 			var citem = new UIMenuItem("Cancel.");
@@ -247,8 +245,10 @@ namespace CommunityRaces
 			_currentRivals.Clear();
 			_rivalCheckpointStatus.Clear();
 			_finishedParticipants.Clear();
+			if (!_racesBlips.Any())
+				AddRacesBlips();
 		}
-		
+
 		public void OnTick(object sender, EventArgs e)
 		{
 			if (DateTime.Now.Second != _lasttime.Second)
