@@ -339,7 +339,7 @@ namespace CommunityRaces
 					if (Game.IsControlJustPressed(0, Control.Context))
 					{
 						Game.Player.CanControlCharacter = false;
-						Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, -1f);
+						Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
 						_previewRace = race;
 						BuildMenu(race);
 						GUI.MainMenu.Visible = true;
