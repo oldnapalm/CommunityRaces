@@ -2,9 +2,9 @@
 
 namespace CommunityRaces
 {
-	public class SpawnPoint
-	{
-		public Vector3 Position;
-		public float Heading;
-	}
+    public class SpawnPoint
+    {
+        public Vector3 Position;
+        public float Heading;
+    }
 }
