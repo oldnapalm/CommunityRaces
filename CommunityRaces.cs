@@ -193,7 +193,9 @@ namespace CommunityRaces
 			if (!Convert.ToBoolean(_raceSettings["Traffic"]))
 				Function.Call(Hash.CLEAR_AREA_OF_VEHICLES, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
 
-			int spawnlen = _raceSettings["Opponents"].ToString() == "Random" ? RandGen.Next(1, race.SpawnPoints.Length - 1) : Convert.ToInt32(_raceSettings["Opponents"]);
+			int spawnlen = 0;
+			if (_raceSettings["Opponents"].ToString() != "None")
+				spawnlen = _raceSettings["Opponents"].ToString() == "Random" ? RandGen.Next(1, race.SpawnPoints.Length - 1) : Convert.ToInt32(_raceSettings["Opponents"]);
 
 			for (int i = 0; i < spawnlen; i++)
 			{
@@ -374,9 +376,12 @@ namespace CommunityRaces
 					new UIResText(FormatTime((int) unchecked(_seconds - _missionStart)),new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1*interval))),0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
 					new Sprite("timerbars", "all_black_bg",new Point(Convert.ToInt32(res.Width) - safe.X - 248,Convert.ToInt32(res.Height) - safe.Y - (100 + (1*interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
-					new UIResText("POSITION", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
-					new UIResText((CalculatePlayerPositionInRace() + 1) + "/" + (_currentRivals.Count + 1), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
-					new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (2 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
+					if (_currentRivals.Any())
+                    {
+						new UIResText("POSITION", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
+						new UIResText((CalculatePlayerPositionInRace() + 1) + "/" + (_currentRivals.Count + 1), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+						new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (2 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
+					}
 
 					if (_raceSettings["Laps"] > 1)
 					{
@@ -530,7 +535,7 @@ namespace CommunityRaces
 				_raceSettings["Wanted"] = checkd;
 			};
 
-			var opponentsList = new List<dynamic> { "Random" };
+			var opponentsList = new List<dynamic> { "Random", "None" };
 			Enumerable.Range(1, race.SpawnPoints.Length - 1).ToList().ForEach(n => opponentsList.Add(n));
 			var opponentsItem = new UIMenuListItem("Number of Opponents", opponentsList, 0);
 			opponentsItem.OnListChanged += (item, index) =>
