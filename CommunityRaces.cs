@@ -46,8 +46,6 @@ namespace CommunityRaces
 		private readonly List<Tuple<Rival, int>> _rivalCheckpointStatus = new List<Tuple<Rival, int>>();
 		private readonly Dictionary<string, dynamic> _raceSettings = new Dictionary<string, dynamic>();
 
-		private const int Mode = 4;
-
 		public CommunityRaces()
 		{
 			Tick += OnTick;
@@ -204,7 +202,7 @@ namespace CommunityRaces
 				var riv = new Rival(availalbleSpawnPoints[spid].Position, availalbleSpawnPoints[spid].Heading, mod);
 				_participants.Add(riv.Vehicle);
 				availalbleSpawnPoints.RemoveAt(spid);
-				Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, riv.Character.Handle, riv.Vehicle.Handle, race.Checkpoints[0].X, race.Checkpoints[0].Y, race.Checkpoints[0].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0);
+				riv.Character.Task.DriveTo(riv.Vehicle, race.Checkpoints[0], 10f, 200f, Rival.MainDrivingStyle);
 				_rivalCheckpointStatus.Add(new Tuple<Rival, int>(riv, 0));
 				var tmpblip = riv.Character.AddBlip();
 				tmpblip.Color = BlipColor.Blue;
@@ -394,7 +392,7 @@ namespace CommunityRaces
 				for (int i = 0; i < _rivalCheckpointStatus.Count; i++)
 				{
 					Tuple<Rival, int> tuple = _rivalCheckpointStatus[i];
-					if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 10f))
+					if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 20f))
 					{
 						tuple.Item1.Character.Task.ClearAll();
 						if (_currentRace.Checkpoints.Length <= tuple.Item2 + 1)
@@ -405,9 +403,7 @@ namespace CommunityRaces
 							continue;
 						}
 						_rivalCheckpointStatus[i] = new Tuple<Rival, int>(tuple.Item1,tuple.Item2 + 1);
-						Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, tuple.Item1.Character.Handle, tuple.Item1.Vehicle.Handle,
-							_currentRace.Checkpoints[tuple.Item2 + 1].X, _currentRace.Checkpoints[tuple.Item2 + 1].Y,
-							_currentRace.Checkpoints[tuple.Item2 + 1].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0); // TODO: Debuggin // old - 6
+						tuple.Item1.Character.Task.DriveTo(tuple.Item1.Vehicle, _currentRace.Checkpoints[tuple.Item2 + 1], 10f, 200f, Rival.MainDrivingStyle);
 					}
 				}
 

@@ -6,9 +6,10 @@ namespace CommunityRaces
 {
 	public class Rival
 	{
-        public static int MainDrivingStyle = 4 | 16 | 32 | 262144 | (int)DrivingStyle.AvoidTraffic;
+		// AvoidVehicles | AvoidEmptyVehicles | AvoidPeds | AvoidObjects | AllowGoingWrongWay | AllowMedianCrossing
+		public static int MainDrivingStyle = 4 | 8 | 16 | 32 | 512 | 262144;
 
-        public Ped Character;
+		public Ped Character;
 		public Vehicle Vehicle;
 		public int Knowledge;
 
@@ -21,17 +22,18 @@ namespace CommunityRaces
 			Vehicle.IsPersistent = false;
 			Vehicle.FreezePosition = true;
 
-            Function.Call(Hash.SET_VEHICLE_MOD_KIT, Vehicle.Handle, 0);
-            Vehicle.SetMod(VehicleMod.Engine, 3, false);
-            Vehicle.SetMod(VehicleMod.Brakes, 2, false);
-            Vehicle.SetMod(VehicleMod.Transmission, 2, false);
-            Vehicle.SetMod(VehicleMod.Suspension, 3, false);
-            
+			Function.Call(Hash.SET_VEHICLE_MOD_KIT, Vehicle.Handle, 0);
+			Vehicle.SetMod(VehicleMod.Engine, 3, false);
+			Vehicle.SetMod(VehicleMod.Brakes, 2, false);
+			Vehicle.SetMod(VehicleMod.Transmission, 2, false);
+			Vehicle.SetMod(VehicleMod.Suspension, 3, false);
+			
 			Character.MaxDrivingSpeed = 500f;
 			Character.DrivingStyle = (DrivingStyle)MainDrivingStyle;
 			Character.DrivingSpeed = 200f;
-            Function.Call(Hash.SET_DRIVER_ABILITY, Character.Handle, 100f);
-        }
+			Function.Call(Hash.SET_DRIVER_ABILITY, Character.Handle, 1f);
+			Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, Character.Handle, 1f);
+		}
 
 		public void Clean()
 		{
