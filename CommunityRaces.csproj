@@ -57,6 +57,7 @@
     <Compile Include="MissionSuccessfulScreen.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Race.cs" />
+    <Compile Include="Replay.cs" />
     <Compile Include="Rival.cs" />
     <Compile Include="SavedProp.cs" />
     <Compile Include="SpawnPoint.cs" />

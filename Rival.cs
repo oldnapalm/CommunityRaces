@@ -11,8 +11,6 @@ namespace CommunityRaces
 
         public Ped Character;
         public Vehicle Vehicle;
-        public int Knowledge;
-
 
         public Rival(Vector3 pos, float heading, Model car)
         {

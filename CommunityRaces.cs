@@ -36,6 +36,9 @@ namespace CommunityRaces
         private MissionPassedScreen _passed;
         private int _lasttime = Environment.TickCount;
         private List<Vector3> _checkpoints = new List<Vector3>();
+        private List<Record> _records = new List<Record>();
+        private Replay _replay;
+        private Ghost _ghost;
 
         private readonly List<Race> _races = new List<Race>();
         private readonly List<Blip> _racesBlips = new List<Blip>();
@@ -108,6 +111,7 @@ namespace CommunityRaces
                 StreamReader file = new StreamReader(path);
                 var raceout = (Race)serializer.Deserialize(file);
                 file.Close();
+                raceout.FileName = Path.GetFileName(path);
                 _races.Add(raceout);
                 counter++;
             }
@@ -135,6 +139,9 @@ namespace CommunityRaces
         private void StartRace(Race race)
         {
             race = new Race(race);
+            _records.Clear();
+            _replay = new Replay("scripts\\Races\\Replays\\" + race.FileName + ".xml");
+            _ghost = null;
             Game.FadeScreenOut(500);
             Wait(500);
             _isInRace = true;
@@ -182,20 +189,29 @@ namespace CommunityRaces
             availalbleSpawnPoints.RemoveAt(spawnId);
 
             _currentVehicle?.Delete();
-            _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position);
-            _currentVehicle.Heading = spawn.Heading;
+            _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position, spawn.Heading);
             _currentVehicle.PrimaryColor = _vehicleColor;
             _currentVehicle.SecondaryColor = _vehicleColor;
             Function.Call(Hash.SET_PED_INTO_VEHICLE, Game.Player.Character.Handle, _currentVehicle.Handle, (int)VehicleSeat.Driver);
             _currentVehicle.IsPersistent = false;
             _currentVehicle.FreezePosition = true;
 
-            if (!Convert.ToBoolean(_raceSettings["Traffic"]))
-                Function.Call(Hash.CLEAR_AREA_OF_VEHICLES, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
-
             int spawnlen = 0;
-            if (_raceSettings["Opponents"].ToString() != "None")
-                spawnlen = _raceSettings["Opponents"].ToString() == "Random" ? RandGen.Next(1, race.SpawnPoints.Length - 1) : Convert.ToInt32(_raceSettings["Opponents"]);
+            switch ((string)_raceSettings["Opponents"])
+            {
+                case "Random":
+                    spawnlen = RandGen.Next(1, race.SpawnPoints.Length - 1);
+                    break;
+                case "Ghost":
+                    if (_replay.Records?.Length > 1)
+                        _ghost = new Ghost(_replay.Records.ToList(), _vehicleHash);
+                    break;
+                case "None":
+                    break;
+                default:
+                    spawnlen = Convert.ToInt32(_raceSettings["Opponents"]);
+                    break;
+            }
 
             for (int i = 0; i < spawnlen; i++)
             {
@@ -229,6 +245,9 @@ namespace CommunityRaces
             _countdown = 5;
             _participants.Add(_currentVehicle);
             _cleanupBag.Add(_currentVehicle);
+
+            if (!Convert.ToBoolean(_raceSettings["Traffic"]))
+                Function.Call(Hash.CLEAR_AREA_OF_VEHICLES, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
         }
 
         private void EndRace()
@@ -253,6 +272,9 @@ namespace CommunityRaces
             _currentRivals.Clear();
             _rivalCheckpointStatus.Clear();
             _finishedParticipants.Clear();
+
+            _ghost?.Delete();
+
             if (!_racesBlips.Any())
                 AddRacesBlips();
         }
@@ -263,24 +285,29 @@ namespace CommunityRaces
             {
                 _seconds++;
                 _lasttime = Environment.TickCount;
-                if (_isInRace && _countdown > 0)
+                if (_isInRace)
                 {
-                    var screen = UIMenu.GetScreenResolutionMaintainRatio();
-                    var w = Convert.ToInt32(screen.Width/2);
-                    _countdown--;
-                    if (_countdown > 3) return;
-                    _fadeoutSprite = new Sprite("mpinventory", "in_world_circle", new Point(w - 125, 200), new Size(250, 250), 0f, _countdown == 0 ? Color.FromArgb(49, 235, 126) : Color.FromArgb(241, 247, 57));
-                    Function.Call(Hash.REQUEST_SCRIPT_AUDIO_BANK, "HUD_MINI_GAME_SOUNDSET", true);
-                    Function.Call(Hash.PLAY_SOUND_FRONTEND, 0, "CHECKPOINT_NORMAL", "HUD_MINI_GAME_SOUNDSET");
-                    if (_countdown == 0)
+                    if (_countdown > 0)
                     {
-                        _participants.ForEach(car => car.FreezePosition = false);
-                        _missionStart = _seconds;
+                        var screen = UIMenu.GetScreenResolutionMaintainRatio();
+                        var w = Convert.ToInt32(screen.Width / 2);
+                        _countdown--;
+                        if (_countdown > 3) return;
+                        _fadeoutSprite = new Sprite("mpinventory", "in_world_circle", new Point(w - 125, 200), new Size(250, 250), 0f, _countdown == 0 ? Color.FromArgb(49, 235, 126) : Color.FromArgb(241, 247, 57));
+                        Function.Call(Hash.REQUEST_SCRIPT_AUDIO_BANK, "HUD_MINI_GAME_SOUNDSET", true);
+                        Function.Call(Hash.PLAY_SOUND_FRONTEND, 0, "CHECKPOINT_NORMAL", "HUD_MINI_GAME_SOUNDSET");
+                        if (_countdown == 0)
+                        {
+                            _participants.ForEach(car => car.FreezePosition = false);
+                            _missionStart = _seconds;
+                        }
                     }
-                }
-                else if (_isInRace && _countdown == 0)
-                {
-                    _countdown = -1;
+                    else
+                    {
+                        if (_countdown == 0) _countdown = -1;
+                        _records.Add(new Record(_currentVehicle.Position.X, _currentVehicle.Position.Y, _currentVehicle.Position.Z, _currentVehicle.Speed));
+                        _ghost?.Update();
+                    }
                 }
             }
 
@@ -376,12 +403,20 @@ namespace CommunityRaces
                     new UIResText(FormatTime((int) unchecked(_seconds - _missionStart)),new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1*interval))),0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
                     new Sprite("timerbars", "all_black_bg",new Point(Convert.ToInt32(res.Width) - safe.X - 248,Convert.ToInt32(res.Height) - safe.Y - (100 + (1*interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
+                    string label, value;
                     if (_currentRivals.Any())
                     {
-                        new UIResText("POSITION", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
-                        new UIResText((CalculatePlayerPositionInRace() + 1) + "/" + (_currentRivals.Count + 1), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
-                        new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (2 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
+                        label = "POSITION";
+                        value = $"{CalculatePlayerPositionInRace() + 1}/{_currentRivals.Count + 1}";
                     }
+                    else
+                    {
+                        label = "BEST";
+                        value = _replay.Records != null ? TimeSpan.FromSeconds(_replay.Records.Length).ToString(@"mm\:ss") : "--:--";
+                    }
+                    new UIResText(label, new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
+                    new UIResText(value, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+                    new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (2 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
                     if (_raceSettings["Laps"] > 1)
                     {
@@ -476,7 +511,37 @@ namespace CommunityRaces
                         };
                         _passed.Show();
                         _isInRace = false;
+
+                        var best = _replay.Records != null ? _replay.Records.Length : 0;
+                        if (_records.Any() && (best == 0 || _records.Count < best))
+                        {
+                            XmlSerializer serializer = new XmlSerializer(typeof(Replay));
+                            if (!Directory.Exists("scripts\\Races\\Replays"))
+                                Directory.CreateDirectory("scripts\\Races\\Replays");
+                            StreamWriter writer = new StreamWriter("scripts\\Races\\Replays\\" + _currentRace.FileName + ".xml");
+                            serializer.Serialize(writer, new Replay { Records = _records.ToArray() });
+                            writer.Close();
+                            _records.Clear();
+                        }
                     }
+                }
+
+                if (_ghost != null)
+                {
+                    Vehicle[] nearbyVehicles = World.GetNearbyVehicles(_ghost.Vehicle.Position, 10f);
+                    foreach (Vehicle vehicle in nearbyVehicles)
+                        if (vehicle != _ghost.Vehicle)
+                        {
+                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, vehicle.Handle, false);
+                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vehicle.Handle, _ghost.Vehicle.Handle, false);
+                        }
+                    Ped[] nearbyPeds = World.GetNearbyPeds(_ghost.Vehicle.Position, 10f);
+                    foreach (Ped ped in nearbyPeds)
+                        if (ped != _ghost.Ped)
+                        {
+                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, ped.Handle, false);
+                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, ped.Handle, _ghost.Vehicle.Handle, false);
+                        }
                 }
             }
         }
@@ -535,9 +600,9 @@ namespace CommunityRaces
                 _raceSettings["Wanted"] = checkd;
             };
 
-            var opponentsList = new List<dynamic> { "Random", "None" };
+            var opponentsList = new List<dynamic> { "Random", "Ghost", "None" };
             Enumerable.Range(1, race.SpawnPoints.Length - 1).ToList().ForEach(n => opponentsList.Add(n));
-            var opponentsItem = new UIMenuListItem("Number of Opponents", opponentsList, 0);
+            var opponentsItem = new UIMenuListItem("Opponents", opponentsList, 0);
             opponentsItem.OnListChanged += (item, index) =>
             {
                 _raceSettings["Opponents"] = item.Items[index];

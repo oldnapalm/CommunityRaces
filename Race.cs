@@ -14,6 +14,7 @@ namespace CommunityRaces
 
         public string Name;
         public string Description;
+        public string FileName;
 
         public Race() { }
 
@@ -28,6 +29,7 @@ namespace CommunityRaces
 
             Name = copyFrom.Name;
             Description = copyFrom.Description;
+            FileName = copyFrom.FileName;
         }
     }
 }
