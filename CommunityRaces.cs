@@ -528,13 +528,13 @@ namespace CommunityRaces
 
                 if (_ghost != null)
                 {
-                    foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 10f))
+                    foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 50f))
                         if (vehicle != _ghost.Vehicle)
                         {
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, vehicle.Handle, false);
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vehicle.Handle, _ghost.Vehicle.Handle, false);
                         }
-                    foreach (Ped ped in World.GetNearbyPeds(_ghost.Vehicle.Position, 10f))
+                    foreach (Ped ped in World.GetNearbyPeds(_ghost.Vehicle.Position, 50f))
                         if (ped != _ghost.Ped)
                         {
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, ped.Handle, false);
