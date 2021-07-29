@@ -381,7 +381,7 @@ namespace CommunityRaces
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
-                if ((Game.IsControlJustPressed(0, Control.VehicleExit) && Game.Player.Character.IsInVehicle()) || (!Game.Player.Character.IsInVehicle() && !Game.Player.Character.IsGettingIntoAVehicle && Game.IsControlJustPressed(0, Control.Enter)))
+                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 5f)))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
@@ -399,9 +399,9 @@ namespace CommunityRaces
                 const int interval = 45;
                 if (_countdown <= 0)
                 {
-                    new UIResText("TIME",new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (1*interval))),0.3f, Color.White).Draw();
-                    new UIResText(FormatTime((int) unchecked(_seconds - _missionStart)),new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1*interval))),0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
-                    new Sprite("timerbars", "all_black_bg",new Point(Convert.ToInt32(res.Width) - safe.X - 248,Convert.ToInt32(res.Height) - safe.Y - (100 + (1*interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
+                    new UIResText("TIME", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (1 * interval))), 0.3f, Color.White).Draw();
+                    new UIResText(FormatTime((int)unchecked(_seconds - _missionStart)), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+                    new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (1 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
                     string label, value;
                     if (_currentRivals.Any())
@@ -423,9 +423,9 @@ namespace CommunityRaces
                         int playerCheckpoint = _currentRace.Checkpoints.Length - _checkpoints.Count;
                         int currentLap = Convert.ToInt32(Math.Floor(playerCheckpoint/(decimal)_totalLaps)) + 1;
 
-                        new UIResText("LAP",new Point(Convert.ToInt32(res.Width) - safe.X - 180,Convert.ToInt32(res.Height) - safe.Y - (90 + (3*interval))), 0.3f, Color.White).Draw();
-                        new UIResText(currentLap + "/" + _raceSettings["Laps"], new Point(Convert.ToInt32(res.Width) - safe.X - 20,Convert.ToInt32(res.Height) - safe.Y - (102 + (3*interval))), 0.5f, Color.White, Font.ChaletLondon,UIResText.Alignment.Right).Draw();
-                        new Sprite("timerbars", "all_black_bg",new Point(Convert.ToInt32(res.Width) - safe.X - 248,Convert.ToInt32(res.Height) - safe.Y - (100 + (3*interval))), new Size(250, 37), 0f,Color.FromArgb(200, 255, 255, 255)).Draw();
+                        new UIResText("LAP", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (3 * interval))), 0.3f, Color.White).Draw();
+                        new UIResText(currentLap + "/" + _raceSettings["Laps"], new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (3 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+                        new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (3 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
                     }
                 }
 
@@ -528,15 +528,13 @@ namespace CommunityRaces
 
                 if (_ghost != null)
                 {
-                    Vehicle[] nearbyVehicles = World.GetNearbyVehicles(_ghost.Vehicle.Position, 10f);
-                    foreach (Vehicle vehicle in nearbyVehicles)
+                    foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 10f))
                         if (vehicle != _ghost.Vehicle)
                         {
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, vehicle.Handle, false);
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vehicle.Handle, _ghost.Vehicle.Handle, false);
                         }
-                    Ped[] nearbyPeds = World.GetNearbyPeds(_ghost.Vehicle.Position, 10f);
-                    foreach (Ped ped in nearbyPeds)
+                    foreach (Ped ped in World.GetNearbyPeds(_ghost.Vehicle.Position, 10f))
                         if (ped != _ghost.Ped)
                         {
                             Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, ped.Handle, false);
