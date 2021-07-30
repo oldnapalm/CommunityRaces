@@ -33,6 +33,9 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MapEditor">
+      <HintPath>..\MapEditor\bin\Release\MapEditor.dll</HintPath>
+    </Reference>
     <Reference Include="NativeUI">
       <HintPath>D:\Grand Theft Auto V\Scripts\NativeUI.dll</HintPath>
     </Reference>

@@ -7,6 +7,8 @@ using System.Xml.Serialization;
 using GTA;
 using GTA.Math;
 using GTA.Native;
+using MapEditor;
+using MapEditor.API;
 using NativeUI;
 using Font = GTA.Font;
 
@@ -80,6 +82,9 @@ namespace CommunityRaces
             AddRacesBlips();
 
             UI.Notify("~b~~h~Community Races~h~~n~~w~Loaded ~b~" + racesLoaded + "~w~ race(s).");
+
+            if (File.Exists("scripts\\MapEditor.dll"))
+                AttachMapEditor();
         }
 
         private void AddRacesBlips()
@@ -99,6 +104,21 @@ namespace CommunityRaces
             foreach (Blip blip in _racesBlips)
                 blip.Remove();
             _racesBlips.Clear();
+        }
+
+        /// <summary>
+        /// This method is encapsulated, so if MapEditor.dll is missing, the script won't crash!
+        /// </summary>
+        private void AttachMapEditor()
+        {
+            var thisMod = new ModListener()
+            {
+                ButtonString = "Create a Community Race",
+                Description = "Create a race for the Community Races mod.",
+                Name = "Community Races",
+            };
+            ModManager.SuscribeMod(thisMod);
+            thisMod.OnMapSaved += SaveMap;
         }
 
         private int LoadRaces()
@@ -557,6 +577,47 @@ namespace CommunityRaces
             var minutes = Convert.ToInt32(Math.Floor(seconds/60f));
             var secs = seconds%60;
             return string.Format("{0:00}:{1:00}", minutes, secs);
+        }
+
+        public void SaveMap(Map map, string filename)
+        {
+            if (!filename.EndsWith(".xml"))
+                filename += ".xml";
+            Race tmpRace = new Race
+            {
+                AvailableVehicles =
+                    map.Objects.Where(obj => obj.Type == ObjectTypes.Vehicle)
+                        .Select(obj => (VehicleHash)obj.Hash)
+                        .Distinct()
+                        .ToArray(),
+                Checkpoints = map.Markers.Select(mar => mar.Position).ToArray()
+            };
+            var props = map.Objects.Where(obj => obj.Type == ObjectTypes.Prop).ToArray();
+            SavedProp[] tmpProps = new SavedProp[props.Length];
+            for (int i = 0; i < props.Length; i++)
+            {
+                tmpProps[i] = new SavedProp()
+                {
+                    Dynamic = props[i].Dynamic,
+                    Hash = props[i].Hash,
+                    Position = props[i].Position,
+                    Rotation = props[i].Rotation,
+                };
+            }
+            tmpRace.DecorativeProps = tmpProps;
+            tmpRace.Trigger = map.Objects.First(obj => obj.Type == ObjectTypes.Ped).Position - new Vector3(0f, 0f, 1f);
+            tmpRace.SpawnPoints = map.Objects.Where(obj => obj.Type == ObjectTypes.Vehicle).Select(obj => new SpawnPoint() { Position = obj.Position, Heading = obj.Rotation.Z }).ToArray();
+            tmpRace.Name = "Nameless Map";
+            tmpRace.Description = "Cool race!";
+
+            XmlSerializer serializer = new XmlSerializer(typeof(Race));
+            if (!Directory.Exists("scripts\\Races"))
+                Directory.CreateDirectory("scripts\\Races");
+            StreamWriter writer = new StreamWriter("scripts\\Races\\" + filename);
+            serializer.Serialize(writer, tmpRace);
+            writer.Close();
+            UI.Notify("~b~~h~Community Races~h~~n~~w~Race saved as ~h~" + filename + "~h~!");
+            UI.Notify("Don't forget to include your name and the map description in the file!");
         }
 
         public void BuildMenu(Race race)
