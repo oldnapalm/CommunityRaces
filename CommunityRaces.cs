@@ -51,6 +51,8 @@ namespace CommunityRaces
         private readonly List<Tuple<Rival, int>> _rivalCheckpointStatus = new List<Tuple<Rival, int>>();
         private readonly Dictionary<string, dynamic> _raceSettings = new Dictionary<string, dynamic>();
 
+        public const int Mode = 4;
+
         public CommunityRaces()
         {
             Tick += OnTick;
@@ -240,7 +242,7 @@ namespace CommunityRaces
                 var riv = new Rival(availalbleSpawnPoints[spid].Position, availalbleSpawnPoints[spid].Heading, mod);
                 _participants.Add(riv.Vehicle);
                 availalbleSpawnPoints.RemoveAt(spid);
-                riv.Character.Task.DriveTo(riv.Vehicle, race.Checkpoints[0], 10f, 200f, Rival.MainDrivingStyle);
+                Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, riv.Character.Handle, riv.Vehicle.Handle, race.Checkpoints[0].X, race.Checkpoints[0].Y, race.Checkpoints[0].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0);
                 _rivalCheckpointStatus.Add(new Tuple<Rival, int>(riv, 0));
                 var tmpblip = riv.Character.AddBlip();
                 tmpblip.Color = BlipColor.Blue;
@@ -401,7 +403,7 @@ namespace CommunityRaces
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
-                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 5f)))
+                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 2f)))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
@@ -432,7 +434,7 @@ namespace CommunityRaces
                     else
                     {
                         label = "BEST";
-                        value = _replay.Records != null ? TimeSpan.FromSeconds(_replay.Records.Length).ToString(@"mm\:ss") : "--:--";
+                        value = _replay.Records != null ? FormatTime(_replay.Records.Length) : "--:--";
                     }
                     new UIResText(label, new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
                     new UIResText(value, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
@@ -463,7 +465,9 @@ namespace CommunityRaces
                             continue;
                         }
                         _rivalCheckpointStatus[i] = new Tuple<Rival, int>(tuple.Item1,tuple.Item2 + 1);
-                        tuple.Item1.Character.Task.DriveTo(tuple.Item1.Vehicle, _currentRace.Checkpoints[tuple.Item2 + 1], 10f, 200f, Rival.MainDrivingStyle);
+                        Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, tuple.Item1.Character.Handle, tuple.Item1.Vehicle.Handle,
+                            _currentRace.Checkpoints[tuple.Item2 + 1].X, _currentRace.Checkpoints[tuple.Item2 + 1].Y,
+                            _currentRace.Checkpoints[tuple.Item2 + 1].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0); // TODO: Debuggin // old - 6
                     }
                 }
 
@@ -574,8 +578,8 @@ namespace CommunityRaces
 
         public string FormatTime(int seconds)
         {
-            var minutes = Convert.ToInt32(Math.Floor(seconds/60f));
-            var secs = seconds%60;
+            var minutes = Convert.ToInt32(Math.Floor(seconds / 60f));
+            var secs = seconds % 60;
             return string.Format("{0:00}:{1:00}", minutes, secs);
         }
 

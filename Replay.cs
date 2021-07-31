@@ -88,8 +88,11 @@ namespace CommunityRaces
                     speed *= 1.1f;
                 Index++;
                 Ped.Task.ClearAll();
-                Ped.Task.DriveTo(Vehicle, GetPoint(Index), 0f, speed, GhostDrivingStyle);
-                Vehicle.Speed = speed;
+                if (!Vehicle.IsInAir || Vehicle.Model.IsHelicopter || Vehicle.Model.IsPlane)
+                {
+                    Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, Ped.Handle, Vehicle.Handle, Records[Index].X, Records[Index].Y, Records[Index].Z, CommunityRaces.Mode, speed, GhostDrivingStyle, 5f, 0f, 0);
+                    Vehicle.Speed = speed;
+                }
             }
             else
             {
