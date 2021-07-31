@@ -16,7 +16,7 @@ namespace CommunityRaces
 
         public static void DrawSettings(Race settingsForRace, Vehicle previewVehicle)
         {
-            if(!IsInMenu) return;
+            if (!IsInMenu) return;
 
             // CAMERA
             if (MainCamera == null || MainCamera.Position != settingsForRace.Trigger + new Vector3(3f, 3f, 3f))
@@ -31,8 +31,8 @@ namespace CommunityRaces
             var safe = UIMenu.GetSafezoneBounds();
             var res = UIMenu.GetScreenResolutionMaintainRatio();
 
-            new UIResText(settingsForRace.Name, new Point(safe.X, safe.Y), 0.8f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) { Outline = true}.Draw();
-            new UIResText(settingsForRace.Description, new Point(safe.X, 50 + safe.Y), 0.4f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) {WordWrap = new Size(Convert.ToInt32(res.Width) - (safe.X*2),0), Outline = true}.Draw();
+            new UIResText(settingsForRace.Name, new Point(safe.X, safe.Y), 0.8f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) { Outline = true }.Draw();
+            new UIResText(settingsForRace.Description, new Point(safe.X, 50 + safe.Y), 0.4f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) { WordWrap = new Size(Convert.ToInt32(res.Width) - (safe.X * 2), 0), Outline = true }.Draw();
 
             new UIResRectangle(new Point(safe.X + 435, safe.Y + 107), new Size(1200, 37), Color.Black).Draw();
             new UIResText("VEHICLE", new Point(safe.X + 1000, safe.Y + 110), 0.35f, Color.White, Font.ChaletLondon, UIResText.Alignment.Centered).Draw();
@@ -105,13 +105,13 @@ namespace CommunityRaces
                     break;
             }
 
-            new UIResText(vehClass, new Point(Convert.ToInt32(res.Width) - 430 - safe.X, 800 - safe.Y), 1.5f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) {DropShadow = true}.Draw();
-            new UIResText(previewVehicle.FriendlyName, new Point(Convert.ToInt32(res.Width) - 400 - safe.X, 840 - safe.Y), 1.5f, Color.DodgerBlue, Font.HouseScript, UIResText.Alignment.Left) {DropShadow = true}.Draw();
+            new UIResText(vehClass, new Point(Convert.ToInt32(res.Width) - 430 - safe.X, 800 - safe.Y), 1.5f, Color.White, Font.ChaletComprimeCologne, UIResText.Alignment.Left) { DropShadow = true }.Draw();
+            new UIResText(previewVehicle.FriendlyName, new Point(Convert.ToInt32(res.Width) - 400 - safe.X, 840 - safe.Y), 1.5f, Color.DodgerBlue, Font.HouseScript, UIResText.Alignment.Left) { DropShadow = true }.Draw();
 
             // MENU CORRECTIONS
             MainMenu.Subtitle.Position = new Point(safe.X + 200, MainMenu.Subtitle.Position.Y);
             MainMenu.Subtitle.TextAlignment = UIResText.Alignment.Centered;
-            
+
         }
 
     }

@@ -17,7 +17,7 @@ namespace CommunityRaces
     public class CommunityRaces : Script
     {
         private static readonly Random RandGen = new Random();
-        
+
         private Blip _nextBlip;
         private Blip _secondBlip;
 
@@ -125,7 +125,6 @@ namespace CommunityRaces
 
         private int LoadRaces()
         {
-            int counter = 0;
             if (!Directory.Exists("scripts\\Races")) return 0;
             foreach (string path in Directory.GetFiles("scripts\\Races", "*.xml"))
             {
@@ -135,9 +134,8 @@ namespace CommunityRaces
                 file.Close();
                 raceout.FileName = Path.GetFileName(path);
                 _races.Add(raceout);
-                counter++;
             }
-            return counter;
+            return _races.Count;
         }
 
         private int CalculatePlayerPositionInRace()
@@ -238,7 +236,7 @@ namespace CommunityRaces
             for (int i = 0; i < spawnlen; i++)
             {
                 var spid = RandGen.Next(availalbleSpawnPoints.Count);
-                Model mod = Helpers.RequestModel((int) race.AvailableVehicles[RandGen.Next(race.AvailableVehicles.Length)]);
+                Model mod = Helpers.RequestModel((int)race.AvailableVehicles[RandGen.Next(race.AvailableVehicles.Length)]);
                 var riv = new Rival(availalbleSpawnPoints[spid].Position, availalbleSpawnPoints[spid].Heading, mod);
                 _participants.Add(riv.Vehicle);
                 availalbleSpawnPoints.RemoveAt(spid);
@@ -369,7 +367,7 @@ namespace CommunityRaces
                     if (!Game.Player.Character.IsInRangeOf(race.Trigger, 10f)) continue;
                     var tmpSF = new Scaleform("PLAYER_NAME_01");
                     tmpSF.CallFunction("SET_PLAYER_NAME", race.Name);
-                    
+
                     tmpSF.Render3D(race.Trigger + new Vector3(0f, 0f, 2f), new Vector3(0f, 0f, _oldAngle), new Vector3(12, 6, 2));
 
                     var tmpT = new Scaleform("PLAYER_NAME_02");
@@ -403,12 +401,12 @@ namespace CommunityRaces
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
-                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 2f)))
+                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 3f)))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
                 }
-                
+
                 if (!Convert.ToBoolean(_raceSettings["Traffic"]))
                 {
                     Function.Call(Hash.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, 0f);
@@ -443,7 +441,7 @@ namespace CommunityRaces
                     if (_raceSettings["Laps"] > 1)
                     {
                         int playerCheckpoint = _currentRace.Checkpoints.Length - _checkpoints.Count;
-                        int currentLap = Convert.ToInt32(Math.Floor(playerCheckpoint/(decimal)_totalLaps)) + 1;
+                        int currentLap = Convert.ToInt32(Math.Floor(playerCheckpoint / (decimal)_totalLaps)) + 1;
 
                         new UIResText("LAP", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (3 * interval))), 0.3f, Color.White).Draw();
                         new UIResText(currentLap + "/" + _raceSettings["Laps"], new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (3 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
@@ -464,7 +462,7 @@ namespace CommunityRaces
                             tuple.Item1.Vehicle.HandbrakeOn = true;
                             continue;
                         }
-                        _rivalCheckpointStatus[i] = new Tuple<Rival, int>(tuple.Item1,tuple.Item2 + 1);
+                        _rivalCheckpointStatus[i] = new Tuple<Rival, int>(tuple.Item1, tuple.Item2 + 1);
                         Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, tuple.Item1.Character.Handle, tuple.Item1.Vehicle.Handle,
                             _currentRace.Checkpoints[tuple.Item2 + 1].X, _currentRace.Checkpoints[tuple.Item2 + 1].Y,
                             _currentRace.Checkpoints[tuple.Item2 + 1].Z, Mode, 200f, Rival.MainDrivingStyle, 5f, 0f, 0); // TODO: Debuggin // old - 6
@@ -515,7 +513,7 @@ namespace CommunityRaces
                         Function.Call(Hash.PLAY_SOUND_FRONTEND, 0, "CHECKPOINT_UNDER_THE_BRIDGE", "HUD_MINI_GAME_SOUNDSET");
                         int position = _finishedParticipants.Count + 1;
                         int peoplecount = _currentRivals.Count + 1;
-                        int score = 100 - ((position - 1)*10);
+                        int score = 100 - ((position - 1) * 10);
                         if (score < 0)
                             score = 0;
                         _passed = new MissionPassedScreen(_currentRace.Name, score, score > 50 ? score > 90 ? MissionPassedScreen.Medal.Gold : MissionPassedScreen.Medal.Silver : MissionPassedScreen.Medal.Bronze);
@@ -690,7 +688,7 @@ namespace CommunityRaces
                 _previewVehicle.SecondaryColor = _vehicleColor;
                 _previewVehicle.IsPersistent = false;
             };
-            
+
             List<dynamic> colors = new List<dynamic>
             {
                 VehicleColor.MatteYellow,
