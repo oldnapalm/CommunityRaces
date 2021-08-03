@@ -150,7 +150,7 @@ namespace CommunityRaces
         private void StartRace(Race race)
         {
             _records.Clear();
-            _replay = new Replay();
+            _replay = new Replay(new Record[0]);
             _ghost = null;
             var fileName = "scripts\\Races\\Replays\\" + race.FileName;
             if (File.Exists(fileName))
@@ -214,13 +214,13 @@ namespace CommunityRaces
             _currentVehicle.FreezePosition = true;
 
             int spawnlen = 0;
-            switch ((string)_raceSettings["Opponents"])
+            switch (_raceSettings["Opponents"].ToString())
             {
                 case "Random":
                     spawnlen = RandGen.Next(1, race.SpawnPoints.Length - 1);
                     break;
                 case "Ghost":
-                    if (_replay.Records?.Length > 1)
+                    if (_replay.Records.Length > 1)
                         _ghost = new Ghost(_replay.Records.ToList(), _vehicleHash);
                     break;
                 case "None":
@@ -431,7 +431,7 @@ namespace CommunityRaces
                     else
                     {
                         label = "BEST";
-                        value = _replay.Records != null ? FormatTime(_replay.Records.Length) : "--:--";
+                        value = _replay.Records.Length > 0 ? FormatTime(_replay.Records.Length) : "--:--";
                     }
                     new UIResText(label, new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
                     new UIResText(value, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
@@ -534,8 +534,7 @@ namespace CommunityRaces
                         _passed.Show();
                         _isInRace = false;
 
-                        var best = _replay.Records != null ? _replay.Records.Length : 0;
-                        if (_records.Any() && (best == 0 || _records.Count < best))
+                        if (_records.Any() && (_replay.Records.Length == 0 || _records.Count < _replay.Records.Length))
                         {
                             if (!Directory.Exists("scripts\\Races\\Replays"))
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
