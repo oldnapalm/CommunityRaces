@@ -1,4 +1,5 @@
-﻿using GTA.Math;
+﻿using GTA;
+using GTA.Math;
 using GTA.Native;
 
 namespace CommunityRaces
@@ -17,19 +18,34 @@ namespace CommunityRaces
         public string FileName;
 
         public Race() { }
+    }
 
-        public Race(Race copyFrom)
+    public class RaceBlip
+    {
+        public string Name;
+        public string Path;
+        public Vector3 Trigger;
+        private Blip Blip;
+
+        public RaceBlip(string name, string path, Vector3 trigger)
         {
-            Checkpoints = copyFrom.Checkpoints;
-            SpawnPoints = copyFrom.SpawnPoints;
-            AvailableVehicles = copyFrom.AvailableVehicles;
-            LapsAvailable = copyFrom.LapsAvailable;
-            DecorativeProps = copyFrom.DecorativeProps;
-            Trigger = copyFrom.Trigger;
+            Name = name;
+            Path = path;
+            Trigger = trigger;
+        }
 
-            Name = copyFrom.Name;
-            Description = copyFrom.Description;
-            FileName = copyFrom.FileName;
+        public void Add()
+        {
+            var blip = World.CreateBlip(Trigger);
+            blip.IsShortRange = true;
+            blip.Sprite = BlipSprite.Race;
+            blip.Name = "Community Race: " + Name;
+            Blip = blip;
+        }
+
+        public void Remove()
+        {
+            Blip.Remove();
         }
     }
 }

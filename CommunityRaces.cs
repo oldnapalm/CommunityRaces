@@ -42,8 +42,7 @@ namespace CommunityRaces
         private Replay _replay;
         private Ghost _ghost;
 
-        private readonly List<Race> _races = new List<Race>();
-        private readonly List<Blip> _racesBlips = new List<Blip>();
+        private readonly List<RaceBlip> _races = new List<RaceBlip>();
         private readonly List<Entity> _cleanupBag = new List<Entity>();
         private readonly List<Vehicle> _participants = new List<Vehicle>();
         private readonly List<Rival> _currentRivals = new List<Rival>();
@@ -57,7 +56,7 @@ namespace CommunityRaces
         {
             Tick += OnTick;
             Aborted += OnAbort;
-            int racesLoaded = LoadRaces();
+            LoadRaces();
 
             _quitMenu = new UIMenu("", "~r~ARE YOU SURE YOU WANT TO QUIT?", new Point(0, -107));
             var qitem = new UIMenuItem("Quit current race.");
@@ -70,6 +69,7 @@ namespace CommunityRaces
                 Game.Player.Character.Position = _currentRace.Trigger;
                 EndRace();
                 Game.FadeScreenIn(500);
+                AddRacesBlips();
             };
             _quitMenu.AddItem(qitem);
             var citem = new UIMenuItem("Cancel.");
@@ -83,29 +83,20 @@ namespace CommunityRaces
 
             AddRacesBlips();
 
-            UI.Notify("~b~~h~Community Races~h~~n~~w~Loaded ~b~" + racesLoaded + "~w~ race(s).");
-
             if (File.Exists("scripts\\MapEditor.dll"))
                 AttachMapEditor();
         }
 
         private void AddRacesBlips()
         {
-            foreach (Race race in _races)
-            {
-                var blip = World.CreateBlip(race.Trigger);
-                blip.IsShortRange = true;
-                blip.Sprite = BlipSprite.Race;
-                blip.Name = "Community Race: " + race.Name;
-                _racesBlips.Add(blip);
-            }
+            foreach (RaceBlip race in _races)
+                race.Add();
         }
 
         private void RemoveRacesBlips()
         {
-            foreach (Blip blip in _racesBlips)
-                blip.Remove();
-            _racesBlips.Clear();
+            foreach (RaceBlip race in _races)
+                race.Remove();
         }
 
         /// <summary>
@@ -123,19 +114,17 @@ namespace CommunityRaces
             thisMod.OnMapSaved += SaveMap;
         }
 
-        private int LoadRaces()
+        private void LoadRaces()
         {
-            if (!Directory.Exists("scripts\\Races")) return 0;
+            if (!Directory.Exists("scripts\\Races")) return;
             foreach (string path in Directory.GetFiles("scripts\\Races", "*.xml"))
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(Race));
                 StreamReader file = new StreamReader(path);
                 var raceout = (Race)serializer.Deserialize(file);
                 file.Close();
-                raceout.FileName = Path.GetFileName(path);
-                _races.Add(raceout);
+                _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
             }
-            return _races.Count;
         }
 
         private int CalculatePlayerPositionInRace()
@@ -158,9 +147,8 @@ namespace CommunityRaces
 
         private void StartRace(Race race)
         {
-            race = new Race(race);
             _records.Clear();
-            _replay = new Replay("scripts\\Races\\Replays\\" + race.FileName + ".xml");
+            _replay = new Replay("scripts\\Races\\Replays\\" + race.FileName);
             _ghost = null;
             Game.FadeScreenOut(500);
             Wait(500);
@@ -294,9 +282,6 @@ namespace CommunityRaces
             _finishedParticipants.Clear();
 
             _ghost?.Delete();
-
-            if (!_racesBlips.Any())
-                AddRacesBlips();
         }
 
         public void OnTick(object sender, EventArgs e)
@@ -387,8 +372,13 @@ namespace CommunityRaces
                     {
                         Game.Player.CanControlCharacter = false;
                         Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
-                        _previewRace = race;
-                        BuildMenu(race);
+                        XmlSerializer serializer = new XmlSerializer(typeof(Race));
+                        StreamReader file = new StreamReader(race.Path);
+                        var raceout = (Race)serializer.Deserialize(file);
+                        file.Close();
+                        raceout.FileName = Path.GetFileName(race.Path);
+                        _previewRace = raceout;
+                        BuildMenu(raceout);
                         GUI.MainMenu.Visible = true;
                         GUI.IsInMenu = true;
                         break;
@@ -530,6 +520,7 @@ namespace CommunityRaces
                             EndRace();
                             _passed = null;
                             Game.FadeScreenIn(1500);
+                            AddRacesBlips();
                         };
                         _passed.Show();
                         _isInRace = false;
@@ -540,7 +531,7 @@ namespace CommunityRaces
                             XmlSerializer serializer = new XmlSerializer(typeof(Replay));
                             if (!Directory.Exists("scripts\\Races\\Replays"))
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
-                            StreamWriter writer = new StreamWriter("scripts\\Races\\Replays\\" + _currentRace.FileName + ".xml");
+                            StreamWriter writer = new StreamWriter("scripts\\Races\\Replays\\" + _currentRace.FileName);
                             serializer.Serialize(writer, new Replay { Records = _records.ToArray() });
                             writer.Close();
                             _records.Clear();
@@ -570,8 +561,8 @@ namespace CommunityRaces
         {
             Tick -= OnTick;
             EndRace();
-            _races.Clear();
             RemoveRacesBlips();
+            _races.Clear();
         }
 
         public string FormatTime(int seconds)
