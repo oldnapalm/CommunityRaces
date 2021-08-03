@@ -27,7 +27,7 @@ namespace CommunityRaces
         private uint _seconds;
         private int _totalLaps;
         private float _oldAngle;
-        private UIMenu _quitMenu;
+        private readonly UIMenu _quitMenu;
         private Race _previewRace;
         private Race _currentRace;
         private Sprite _fadeoutSprite;
@@ -38,7 +38,7 @@ namespace CommunityRaces
         private MissionPassedScreen _passed;
         private int _lasttime = Environment.TickCount;
         private List<Vector3> _checkpoints = new List<Vector3>();
-        private List<Record> _records = new List<Record>();
+        private readonly List<Record> _records = new List<Record>();
         private Replay _replay;
         private Ghost _ghost;
 
@@ -49,6 +49,9 @@ namespace CommunityRaces
         private readonly List<Rival> _finishedParticipants = new List<Rival>();
         private readonly List<Tuple<Rival, int>> _rivalCheckpointStatus = new List<Tuple<Rival, int>>();
         private readonly Dictionary<string, dynamic> _raceSettings = new Dictionary<string, dynamic>();
+
+        private readonly XmlSerializer _raceSerializer = new XmlSerializer(typeof(Race));
+        private readonly XmlSerializer _replaySerializer = new XmlSerializer(typeof(Replay));
 
         public const int Mode = 4;
 
@@ -119,9 +122,8 @@ namespace CommunityRaces
             if (!Directory.Exists("scripts\\Races")) return;
             foreach (string path in Directory.GetFiles("scripts\\Races", "*.xml"))
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(Race));
                 StreamReader file = new StreamReader(path);
-                var raceout = (Race)serializer.Deserialize(file);
+                var raceout = (Race)_raceSerializer.Deserialize(file);
                 file.Close();
                 _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
             }
@@ -148,8 +150,16 @@ namespace CommunityRaces
         private void StartRace(Race race)
         {
             _records.Clear();
-            _replay = new Replay("scripts\\Races\\Replays\\" + race.FileName);
+            _replay = new Replay();
             _ghost = null;
+            var fileName = "scripts\\Races\\Replays\\" + race.FileName;
+            if (File.Exists(fileName))
+            {
+                StreamReader file = new StreamReader(fileName);
+                _replay = (Replay)_replaySerializer.Deserialize(file);
+                file.Close();
+            }
+
             Game.FadeScreenOut(500);
             Wait(500);
             _isInRace = true;
@@ -167,8 +177,7 @@ namespace CommunityRaces
 
             if (_raceSettings["Weather"] != "Current")
             {
-                Weather wout;
-                Enum.TryParse(_raceSettings["Weather"], out wout);
+                Enum.TryParse(_raceSettings["Weather"], out Weather wout);
                 World.Weather = wout;
             }
 
@@ -281,6 +290,7 @@ namespace CommunityRaces
             _rivalCheckpointStatus.Clear();
             _finishedParticipants.Clear();
 
+            _records.Clear();
             _ghost?.Delete();
         }
 
@@ -372,9 +382,8 @@ namespace CommunityRaces
                     {
                         Game.Player.CanControlCharacter = false;
                         Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
-                        XmlSerializer serializer = new XmlSerializer(typeof(Race));
                         StreamReader file = new StreamReader(race.Path);
-                        var raceout = (Race)serializer.Deserialize(file);
+                        var raceout = (Race)_raceSerializer.Deserialize(file);
                         file.Close();
                         raceout.FileName = Path.GetFileName(race.Path);
                         _previewRace = raceout;
@@ -528,13 +537,11 @@ namespace CommunityRaces
                         var best = _replay.Records != null ? _replay.Records.Length : 0;
                         if (_records.Any() && (best == 0 || _records.Count < best))
                         {
-                            XmlSerializer serializer = new XmlSerializer(typeof(Replay));
                             if (!Directory.Exists("scripts\\Races\\Replays"))
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
                             StreamWriter writer = new StreamWriter("scripts\\Races\\Replays\\" + _currentRace.FileName);
-                            serializer.Serialize(writer, new Replay { Records = _records.ToArray() });
+                            _replaySerializer.Serialize(writer, new Replay(_records.ToArray()));
                             writer.Close();
-                            _records.Clear();
                         }
                     }
                 }
@@ -603,11 +610,10 @@ namespace CommunityRaces
             tmpRace.Name = "Nameless Map";
             tmpRace.Description = "Cool race!";
 
-            XmlSerializer serializer = new XmlSerializer(typeof(Race));
             if (!Directory.Exists("scripts\\Races"))
                 Directory.CreateDirectory("scripts\\Races");
             StreamWriter writer = new StreamWriter("scripts\\Races\\" + filename);
-            serializer.Serialize(writer, tmpRace);
+            _raceSerializer.Serialize(writer, tmpRace);
             writer.Close();
             UI.Notify("~b~~h~Community Races~h~~n~~w~Race saved as ~h~" + filename + "~h~!");
             UI.Notify("Don't forget to include your name and the map description in the file!");

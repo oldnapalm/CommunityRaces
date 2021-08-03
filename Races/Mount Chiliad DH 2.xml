@@ -170,7 +170,7 @@
   <AvailableVehicles>
     <VehicleHash>Scorcher</VehicleHash>
   </AvailableVehicles>
-  <LapsAvailable>true</LapsAvailable>
+  <LapsAvailable>false</LapsAvailable>
   <DecorativeProps />
   <Trigger>
     <X>499.972168</X>

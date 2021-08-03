@@ -2,8 +2,6 @@
 using GTA.Math;
 using GTA.Native;
 using System.Collections.Generic;
-using System.IO;
-using System.Xml.Serialization;
 
 namespace CommunityRaces
 {
@@ -13,16 +11,9 @@ namespace CommunityRaces
 
         public Replay() { }
 
-        public Replay(string fileName)
+        public Replay(Record[] records)
         {
-            if (File.Exists(fileName))
-            {
-                XmlSerializer serializer = new XmlSerializer(typeof(Replay));
-                StreamReader file = new StreamReader(fileName);
-                var replay = (Replay)serializer.Deserialize(file);
-                file.Close();
-                Records = replay.Records;
-            }
+            Records = records;
         }
     }
 
@@ -49,11 +40,11 @@ namespace CommunityRaces
         public Vehicle Vehicle;
         public Ped Ped;
 
-        private List<Record> Records;
-        private Blip Blip;
+        private readonly List<Record> Records;
+        private readonly Blip Blip;
         private int Index;
 
-        private static int GhostDrivingStyle = 16777216; // IgnorePathFinding
+        private static readonly int GhostDrivingStyle = 16777216; // IgnorePathFinding
 
         public Ghost(List<Record> records, VehicleHash vehicle)
         {
