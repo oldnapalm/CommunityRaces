@@ -39,6 +39,9 @@
     <Reference Include="NativeUI">
       <HintPath>D:\Grand Theft Auto V\Scripts\NativeUI.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>D:\Grand Theft Auto V\Scripts\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="ScriptHookVDotNet2">
       <HintPath>D:\Grand Theft Auto V\ScriptHookVDotNet2.dll</HintPath>
     </Reference>

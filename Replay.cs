@@ -1,37 +1,65 @@
 ﻿using GTA;
 using GTA.Math;
 using GTA.Native;
+using System;
 using System.Collections.Generic;
 
 namespace CommunityRaces
 {
     public class Replay
     {
+        public int Time;
         public Record[] Records;
 
-        public Replay() { }
-
-        public Replay(Record[] records)
+        public Replay(int time, Record[] records)
         {
+            Time = time;
             Records = records;
         }
     }
 
     public class Record
     {
-        public float X;
-        public float Y;
-        public float Z;
-        public float Speed;
+        public float PX;
+        public float PY;
+        public float PZ;
+        public float RX;
+        public float RY;
+        public float RZ;
+        public float RW;
+        public float VX;
+        public float VY;
+        public float VZ;
+        public float S;
 
-        public Record() { }
-
-        public Record(float x, float y, float z, float speed)
+        public Record(Vector3 position, Quaternion rotation, Vector3 velocity, float speed)
         {
-            X = x;
-            Y = y;
-            Z = z;
-            Speed = speed;
+            PX = position.X;
+            PY = position.Y;
+            PZ = position.Z;
+            RX = rotation.X;
+            RY = rotation.Y;
+            RZ = rotation.Z;
+            RW = rotation.W;
+            VX = velocity.X;
+            VY = velocity.Y;
+            VZ = velocity.Z;
+            S = speed;
+        }
+
+        public Vector3 GetPosition()
+        {
+            return new Vector3(PX, PY, PZ);
+        }
+
+        public Quaternion GetRotation()
+        {
+            return new Quaternion(RX, RY, RZ, RW);
+        }
+
+        public Vector3 GetVelocity()
+        {
+            return new Vector3(VX, VY, VZ);
         }
     }
 
@@ -43,18 +71,18 @@ namespace CommunityRaces
         private readonly List<Record> Records;
         private readonly Blip Blip;
         private int Index;
-
-        private static readonly int GhostDrivingStyle = 16777216; // IgnorePathFinding
+        private int StopTime;
 
         public Ghost(List<Record> records, VehicleHash vehicle)
         {
             Records = records;
             Index = 0;
-            Vector3 start = GetPoint(Index);
-            Vehicle = World.CreateVehicle(Helpers.RequestModel((int)vehicle), start, GetHeading(Index));
+            var record = Records[Index];
+            Vehicle = World.CreateVehicle(Helpers.RequestModel((int)vehicle), record.GetPosition(), record.GetRotation().Z);
+            Vehicle.Quaternion = record.GetRotation();
             Vehicle.IsInvincible = true;
             Vehicle.Alpha = 100;
-            Ped = World.CreateRandomPed(start);
+            Ped = World.CreateRandomPed(record.GetPosition());
             Ped.IsInvincible = true;
             Ped.Alpha = 100;
             Ped.SetIntoVehicle(Vehicle, VehicleSeat.Driver);
@@ -68,38 +96,28 @@ namespace CommunityRaces
             {
                 if (!Ped.IsInVehicle(Vehicle))
                     Ped.SetIntoVehicle(Vehicle, VehicleSeat.Driver);
-                float speed = Records[Index].Speed;
-                float distance = Vehicle.Position.DistanceTo(GetPoint(Index));
-                if (distance > 20f)
-                {
-                    Vehicle.Position = GetPoint(Index);
-                    Vehicle.Heading = GetHeading(Index);
-                }
-                else if (distance > 5f)
-                    speed *= 1.1f;
+
                 Index++;
-                Ped.Task.ClearAll();
-                if (!Vehicle.IsInAir || Vehicle.Model.IsHelicopter || Vehicle.Model.IsPlane)
+                var record = Records[Index];
+
+                if (record.S > 0.2f && Vehicle.IsInRangeOf(record.GetPosition(), 7.0f))
                 {
-                    Function.Call(Hash.TASK_VEHICLE_MISSION_COORS_TARGET, Ped.Handle, Vehicle.Handle, Records[Index].X, Records[Index].Y, Records[Index].Z, CommunityRaces.Mode, speed, GhostDrivingStyle, 5f, 0f, 0);
-                    Vehicle.Speed = speed;
+                    Vehicle.Velocity = record.GetVelocity() + (record.GetPosition() - Vehicle.Position);
+                    Vehicle.Quaternion = Quaternion.Slerp(Vehicle.Quaternion, record.GetRotation(), 0.5f);
+                    StopTime = Environment.TickCount;
+                }
+                else if (Environment.TickCount - StopTime <= 1000)
+                {
+                    Vector3 posTarget = Helpers.LinearVectorLerp(Vehicle.Position, record.GetPosition() + (record.GetPosition() - Vehicle.Position), Environment.TickCount - StopTime, 1000);
+                    Vehicle.PositionNoOffset = posTarget;
+                    Vehicle.Quaternion = Quaternion.Slerp(Vehicle.Quaternion, record.GetRotation(), 0.5f);
+                }
+                else
+                {
+                    Vehicle.Position = record.GetPosition();
+                    Vehicle.Quaternion = record.GetRotation();
                 }
             }
-            else
-            {
-                Ped.Task.ClearAll();
-                Vehicle.HandbrakeOn = true;
-            }
-        }
-
-        private Vector3 GetPoint(int i)
-        {
-            return new Vector3(Records[i].X, Records[i].Y, Records[i].Z);
-        }
-
-        private float GetHeading(int i)
-        {
-            return (new Vector2(Records[i + 1].X, Records[i + 1].Y) - new Vector2(Records[i].X, Records[i].Y)).ToHeading();
         }
 
         public void Delete()

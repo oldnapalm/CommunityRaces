@@ -10,6 +10,7 @@ using GTA.Native;
 using MapEditor;
 using MapEditor.API;
 using NativeUI;
+using Newtonsoft.Json;
 using Font = GTA.Font;
 
 namespace CommunityRaces
@@ -39,6 +40,7 @@ namespace CommunityRaces
         private int _lasttime = Environment.TickCount;
         private List<Vector3> _checkpoints = new List<Vector3>();
         private readonly List<Record> _records = new List<Record>();
+        private int _lastRecord = Environment.TickCount;
         private Replay _replay;
         private Ghost _ghost;
 
@@ -50,10 +52,9 @@ namespace CommunityRaces
         private readonly List<Tuple<Rival, int>> _rivalCheckpointStatus = new List<Tuple<Rival, int>>();
         private readonly Dictionary<string, dynamic> _raceSettings = new Dictionary<string, dynamic>();
 
-        private readonly XmlSerializer _raceSerializer = new XmlSerializer(typeof(Race));
-        private readonly XmlSerializer _replaySerializer = new XmlSerializer(typeof(Replay));
+        private readonly XmlSerializer _serializer = new XmlSerializer(typeof(Race));
 
-        public const int Mode = 4;
+        private const int Mode = 4;
 
         public CommunityRaces()
         {
@@ -120,13 +121,13 @@ namespace CommunityRaces
         private void LoadRaces()
         {
             if (!Directory.Exists("scripts\\Races")) return;
+
             foreach (string path in Directory.GetFiles("scripts\\Races", "*.xml"))
-            {
-                StreamReader file = new StreamReader(path);
-                var raceout = (Race)_raceSerializer.Deserialize(file);
-                file.Close();
-                _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
-            }
+                using (StreamReader file = new StreamReader(path))
+                {
+                    var raceout = (Race)_serializer.Deserialize(file);
+                    _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
+                }
         }
 
         private int CalculatePlayerPositionInRace()
@@ -150,15 +151,13 @@ namespace CommunityRaces
         private void StartRace(Race race)
         {
             _records.Clear();
-            _replay = new Replay(new Record[0]);
+            _replay = new Replay(0, new Record[0]);
             _ghost = null;
-            var fileName = "scripts\\Races\\Replays\\" + race.FileName;
+            var fileName = "scripts\\Races\\Replays\\" + race.FileName + ".json";
             if (File.Exists(fileName))
-            {
-                StreamReader file = new StreamReader(fileName);
-                _replay = (Replay)_replaySerializer.Deserialize(file);
-                file.Close();
-            }
+                using (StreamReader reader = new StreamReader(fileName))
+                    using (JsonTextReader jsonReader = new JsonTextReader(reader))
+                        _replay = new JsonSerializer().Deserialize<Replay>(jsonReader);
 
             Game.FadeScreenOut(500);
             Wait(500);
@@ -220,7 +219,7 @@ namespace CommunityRaces
                     spawnlen = RandGen.Next(1, race.SpawnPoints.Length - 1);
                     break;
                 case "Ghost":
-                    if (_replay.Records.Length > 1)
+                    if (_replay.Records.Length > 0)
                         _ghost = new Ghost(_replay.Records.ToList(), _vehicleHash);
                     break;
                 case "None":
@@ -317,12 +316,7 @@ namespace CommunityRaces
                             _missionStart = _seconds;
                         }
                     }
-                    else
-                    {
-                        if (_countdown == 0) _countdown = -1;
-                        _records.Add(new Record(_currentVehicle.Position.X, _currentVehicle.Position.Y, _currentVehicle.Position.Z, _currentVehicle.Speed));
-                        _ghost?.Update();
-                    }
+                    else if (_countdown == 0) _countdown = -1;
                 }
             }
 
@@ -382,12 +376,13 @@ namespace CommunityRaces
                     {
                         Game.Player.CanControlCharacter = false;
                         Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
-                        StreamReader file = new StreamReader(race.Path);
-                        var raceout = (Race)_raceSerializer.Deserialize(file);
-                        file.Close();
-                        raceout.FileName = Path.GetFileName(race.Path);
-                        _previewRace = raceout;
-                        BuildMenu(raceout);
+                        using (StreamReader file = new StreamReader(race.Path))
+                        {
+                            var raceout = (Race)_serializer.Deserialize(file);
+                            raceout.FileName = Path.GetFileNameWithoutExtension(race.Path);
+                            _previewRace = raceout;
+                            BuildMenu(raceout);
+                        }
                         GUI.MainMenu.Visible = true;
                         GUI.IsInMenu = true;
                         break;
@@ -400,7 +395,7 @@ namespace CommunityRaces
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
-                if (Game.IsControlJustPressed(0, Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || !Game.Player.Character.IsInRangeOf(_currentVehicle.Position, 3f)))
+                if (Game.IsControlJustPressed(0, Control.VehicleExit))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
@@ -431,7 +426,7 @@ namespace CommunityRaces
                     else
                     {
                         label = "BEST";
-                        value = _replay.Records.Length > 0 ? FormatTime(_replay.Records.Length) : "--:--";
+                        value = _replay.Time > 0 ? FormatTime(_replay.Time) : "--:--";
                     }
                     new UIResText(label, new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (2 * interval))), 0.3f, Color.White).Draw();
                     new UIResText(value, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
@@ -445,6 +440,13 @@ namespace CommunityRaces
                         new UIResText("LAP", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (3 * interval))), 0.3f, Color.White).Draw();
                         new UIResText(currentLap + "/" + _raceSettings["Laps"], new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (3 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
                         new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (3 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
+                    }
+
+                    if (Environment.TickCount >= _lastRecord + 20)
+                    {
+                        _lastRecord = Environment.TickCount;
+                        _records.Add(new Record(_currentVehicle.Position, _currentVehicle.Quaternion, _currentVehicle.Velocity, _currentVehicle.Speed));
+                        _ghost?.Update();
                     }
                 }
 
@@ -534,32 +536,32 @@ namespace CommunityRaces
                         _passed.Show();
                         _isInRace = false;
 
-                        if (_records.Any() && (_replay.Records.Length == 0 || _records.Count < _replay.Records.Length))
+                        if (_replay.Time == 0 || _seconds - _missionStart < _replay.Time)
                         {
                             if (!Directory.Exists("scripts\\Races\\Replays"))
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
-                            StreamWriter writer = new StreamWriter("scripts\\Races\\Replays\\" + _currentRace.FileName);
-                            _replaySerializer.Serialize(writer, new Replay(_records.ToArray()));
-                            writer.Close();
+
+                            using (StreamWriter file = File.CreateText("scripts\\Races\\Replays\\" + _currentRace.FileName + ".json"))
+                                new JsonSerializer().Serialize(file, new Replay((int)(_seconds - _missionStart), _records.ToArray()));
                         }
                     }
                 }
+            }
 
-                if (_ghost != null)
-                {
-                    foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 50f))
-                        if (vehicle != _ghost.Vehicle)
-                        {
-                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, vehicle.Handle, false);
-                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vehicle.Handle, _ghost.Vehicle.Handle, false);
-                        }
-                    foreach (Ped ped in World.GetNearbyPeds(_ghost.Vehicle.Position, 50f))
-                        if (ped != _ghost.Ped)
-                        {
-                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, ped.Handle, false);
-                            Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, ped.Handle, _ghost.Vehicle.Handle, false);
-                        }
-                }
+            if (_ghost != null)
+            {
+                foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 50f))
+                    if (vehicle != _ghost.Vehicle)
+                    {
+                        Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, vehicle.Handle, false);
+                        Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vehicle.Handle, _ghost.Vehicle.Handle, false);
+                    }
+                foreach (Ped ped in World.GetNearbyPeds(_ghost.Vehicle.Position, 50f))
+                    if (ped != _ghost.Ped)
+                    {
+                        Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, _ghost.Vehicle.Handle, ped.Handle, false);
+                        Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, ped.Handle, _ghost.Vehicle.Handle, false);
+                    }
             }
         }
 
@@ -611,9 +613,8 @@ namespace CommunityRaces
 
             if (!Directory.Exists("scripts\\Races"))
                 Directory.CreateDirectory("scripts\\Races");
-            StreamWriter writer = new StreamWriter("scripts\\Races\\" + filename);
-            _raceSerializer.Serialize(writer, tmpRace);
-            writer.Close();
+            using (StreamWriter writer = new StreamWriter("scripts\\Races\\" + filename))
+                _serializer.Serialize(writer, tmpRace);
             UI.Notify("~b~~h~Community Races~h~~n~~w~Race saved as ~h~" + filename + "~h~!");
             UI.Notify("Don't forget to include your name and the map description in the file!");
         }
