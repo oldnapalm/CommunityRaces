@@ -1,19 +1,19 @@
 ﻿using GTA;
 using GTA.Math;
-using GTA.Native;
 using System;
-using System.Collections.Generic;
 
 namespace CommunityRaces
 {
     public class Replay
     {
-        public int Time;
+        public uint Time;
+        public uint Vehicle;
         public Record[] Records;
 
-        public Replay(int time, Record[] records)
+        public Replay(uint time, uint vehicle, Record[] records)
         {
             Time = time;
+            Vehicle = vehicle;
             Records = records;
         }
     }
@@ -68,17 +68,17 @@ namespace CommunityRaces
         public Vehicle Vehicle;
         public Ped Ped;
 
-        private readonly List<Record> Records;
+        private readonly Record[] Records;
         private readonly Blip Blip;
         private int Index;
         private int StopTime;
 
-        public Ghost(List<Record> records, VehicleHash vehicle)
+        public Ghost(Replay replay)
         {
-            Records = records;
+            Records = replay.Records;
             Index = 0;
             var record = Records[Index];
-            Vehicle = World.CreateVehicle(Helpers.RequestModel((int)vehicle), record.GetPosition(), record.GetRotation().Z);
+            Vehicle = World.CreateVehicle(Helpers.RequestModel((int)replay.Vehicle), record.GetPosition(), record.GetRotation().Z);
             Vehicle.Quaternion = record.GetRotation();
             Vehicle.IsInvincible = true;
             Vehicle.Alpha = 100;
@@ -92,18 +92,14 @@ namespace CommunityRaces
 
         public void Update()
         {
-            if (Records.Count > Index + 1)
+            if (Index < Records.Length)
             {
-                if (!Ped.IsInVehicle(Vehicle))
-                    Ped.SetIntoVehicle(Vehicle, VehicleSeat.Driver);
-
-                Index++;
                 var record = Records[Index];
 
                 if (record.S > 0.2f && Vehicle.IsInRangeOf(record.GetPosition(), 7.0f))
                 {
                     Vehicle.Velocity = record.GetVelocity() + (record.GetPosition() - Vehicle.Position);
-                    Vehicle.Quaternion = Quaternion.Slerp(Vehicle.Quaternion, record.GetRotation(), 0.5f);
+                    Vehicle.Quaternion = Quaternion.Slerp(Vehicle.Quaternion, record.GetRotation(), 0.25f);
                     StopTime = Environment.TickCount;
                 }
                 else if (Environment.TickCount - StopTime <= 1000)
@@ -118,6 +114,19 @@ namespace CommunityRaces
                     Vehicle.Quaternion = record.GetRotation();
                 }
             }
+            else
+                Vehicle.HandbrakeOn = true;
+        }
+
+        public void NextRecord()
+        {
+            if (Index < Records.Length)
+            {
+                Index++;
+
+                if (!Ped.IsInVehicle(Vehicle))
+                    Ped.SetIntoVehicle(Vehicle, VehicleSeat.Driver);
+            }
         }
 
         public void Delete()
@@ -125,7 +134,6 @@ namespace CommunityRaces
             Blip?.Remove();
             Ped?.Delete();
             Vehicle?.Delete();
-            Records?.Clear();
         }
     }
 }

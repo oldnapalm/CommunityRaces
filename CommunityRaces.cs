@@ -25,7 +25,7 @@ namespace CommunityRaces
         private bool _isInRace;
         private int _countdown = -1;
         private uint _missionStart;
-        private uint _seconds;
+        private uint _seconds = 0;
         private int _totalLaps;
         private float _oldAngle;
         private readonly UIMenu _quitMenu;
@@ -70,7 +70,7 @@ namespace CommunityRaces
                 _quitMenu.Visible = false;
                 Game.FadeScreenOut(500);
                 Wait(1000);
-                Game.Player.Character.Position = _currentRace.Trigger;
+                Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
                 EndRace();
                 Game.FadeScreenIn(500);
                 AddRacesBlips();
@@ -151,13 +151,14 @@ namespace CommunityRaces
         private void StartRace(Race race)
         {
             _records.Clear();
-            _replay = new Replay(0, new Record[0]);
             _ghost = null;
             var fileName = "scripts\\Races\\Replays\\" + race.FileName + ".json";
             if (File.Exists(fileName))
                 using (StreamReader reader = new StreamReader(fileName))
                     using (JsonTextReader jsonReader = new JsonTextReader(reader))
                         _replay = new JsonSerializer().Deserialize<Replay>(jsonReader);
+            else
+                _replay = new Replay(0, (uint)_vehicleHash, new Record[0]);
 
             Game.FadeScreenOut(500);
             Wait(500);
@@ -220,7 +221,7 @@ namespace CommunityRaces
                     break;
                 case "Ghost":
                     if (_replay.Records.Length > 0)
-                        _ghost = new Ghost(_replay.Records.ToList(), _vehicleHash);
+                        _ghost = new Ghost(_replay);
                     break;
                 case "None":
                     break;
@@ -291,6 +292,7 @@ namespace CommunityRaces
 
             _records.Clear();
             _ghost?.Delete();
+            _ghost = null;
         }
 
         public void OnTick(object sender, EventArgs e)
@@ -414,7 +416,7 @@ namespace CommunityRaces
                 if (_countdown <= 0)
                 {
                     new UIResText("TIME", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (1 * interval))), 0.3f, Color.White).Draw();
-                    new UIResText(FormatTime((int)unchecked(_seconds - _missionStart)), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+                    new UIResText(FormatTime(_seconds - _missionStart), new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (1 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
                     new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (1 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
                     string label, value;
@@ -442,12 +444,13 @@ namespace CommunityRaces
                         new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (3 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
                     }
 
-                    if (Environment.TickCount >= _lastRecord + 20)
+                    if (Environment.TickCount >= _lastRecord + 100)
                     {
                         _lastRecord = Environment.TickCount;
                         _records.Add(new Record(_currentVehicle.Position, _currentVehicle.Quaternion, _currentVehicle.Velocity, _currentVehicle.Speed));
-                        _ghost?.Update();
+                        _ghost?.NextRecord();
                     }
+                    _ghost?.Update();
                 }
 
                 for (int i = 0; i < _rivalCheckpointStatus.Count; i++)
@@ -518,14 +521,14 @@ namespace CommunityRaces
                         if (score < 0)
                             score = 0;
                         _passed = new MissionPassedScreen(_currentRace.Name, score, score > 50 ? score > 90 ? MissionPassedScreen.Medal.Gold : MissionPassedScreen.Medal.Silver : MissionPassedScreen.Medal.Bronze);
-                        _passed.AddItem("Time Elapsed", FormatTime((int)unchecked(_seconds - _missionStart)), MissionPassedScreen.TickboxState.None);
+                        _passed.AddItem("Time Elapsed", FormatTime(_seconds - _missionStart), MissionPassedScreen.TickboxState.None);
                         _passed.AddItem("Position", position + "/" + peoplecount, position == 1 ? MissionPassedScreen.TickboxState.Tick : MissionPassedScreen.TickboxState.Empty);
                         _passed.OnContinueHit += () =>
                         {
                             Game.FadeScreenOut(1000);
                             Wait(1000);
                             Function.Call(Hash._STOP_SCREEN_EFFECT, "HeistCelebPass");
-                            Game.Player.Character.Position = _currentRace.Trigger;
+                            Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
                             Game.Player.CanControlCharacter = true;
                             World.RenderingCamera = null;
                             EndRace();
@@ -542,7 +545,7 @@ namespace CommunityRaces
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
 
                             using (StreamWriter file = File.CreateText("scripts\\Races\\Replays\\" + _currentRace.FileName + ".json"))
-                                new JsonSerializer().Serialize(file, new Replay((int)(_seconds - _missionStart), _records.ToArray()));
+                                new JsonSerializer().Serialize(file, new Replay(_seconds - _missionStart, (uint)_vehicleHash, _records.ToArray()));
                         }
                     }
                 }
@@ -573,7 +576,7 @@ namespace CommunityRaces
             _races.Clear();
         }
 
-        public string FormatTime(int seconds)
+        public string FormatTime(uint seconds)
         {
             var minutes = Convert.ToInt32(Math.Floor(seconds / 60f));
             var secs = seconds % 60;
@@ -677,7 +680,7 @@ namespace CommunityRaces
             var carItem = new UIMenuListItem("Vehicle", tmpList, 0);
             carItem.OnListChanged += (item, index) =>
             {
-                Enum.TryParse(item.Items[index].ToString(), out _vehicleHash);
+                _vehicleHash = race.AvailableVehicles[index];
                 _previewVehicle?.Delete();
                 _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
                 if (_previewVehicle == null) return;
