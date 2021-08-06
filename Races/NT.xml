@@ -128,7 +128,7 @@
     <VehicleHash>ZR350</VehicleHash>
 	<VehicleHash>Dominator7</VehicleHash>
   </AvailableVehicles>
-  <LapsAvailable>true</LapsAvailable>
+  <LapsAvailable>false</LapsAvailable>
   <DecorativeProps />
   <Trigger>
     <X>1207.56128</X>
