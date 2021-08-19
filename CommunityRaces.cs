@@ -125,8 +125,15 @@ namespace CommunityRaces
             foreach (string path in Directory.GetFiles("scripts\\Races", "*.xml"))
                 using (StreamReader file = new StreamReader(path))
                 {
-                    var raceout = (Race)_serializer.Deserialize(file);
-                    _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
+                    try
+                    {
+                        var raceout = (Race)_serializer.Deserialize(file);
+                        _races.Add(new RaceBlip(raceout.Name, path, raceout.Trigger));
+                    }
+                    catch
+                    {
+                        UI.Notify($"Error loading {Path.GetFileName(path)}");
+                    }
                 }
         }
 
