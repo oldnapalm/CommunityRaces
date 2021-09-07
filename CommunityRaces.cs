@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 using System.Xml.Serialization;
 using GTA;
 using GTA.Math;
@@ -28,6 +29,10 @@ namespace CommunityRaces
         private uint _seconds = 0;
         private int _totalLaps;
         private float _oldAngle;
+        private bool _wanted;
+        private bool _traffic;
+        private bool _peds;
+        private int _laps;
         private readonly UIMenu _quitMenu;
         private Race _previewRace;
         private Race _currentRace;
@@ -35,7 +40,8 @@ namespace CommunityRaces
         private Vehicle _previewVehicle;
         private Vehicle _currentVehicle;
         private VehicleHash _vehicleHash;
-        private VehicleColor _vehicleColor;
+        private VehicleColor _vehiclePrimaryColor;
+        private VehicleColor _vehicleSecondaryColor;
         private MissionPassedScreen _passed;
         private int _lasttime = Environment.TickCount;
         private List<Vector3> _checkpoints = new List<Vector3>();
@@ -43,6 +49,7 @@ namespace CommunityRaces
         private int _lastRecord = Environment.TickCount;
         private Replay _replay;
         private Ghost _ghost;
+        private readonly Blip _island;
 
         private readonly List<RaceBlip> _races = new List<RaceBlip>();
         private readonly List<Entity> _cleanupBag = new List<Entity>();
@@ -50,7 +57,6 @@ namespace CommunityRaces
         private readonly List<Rival> _currentRivals = new List<Rival>();
         private readonly List<Rival> _finishedParticipants = new List<Rival>();
         private readonly List<Tuple<Rival, int>> _rivalCheckpointStatus = new List<Tuple<Rival, int>>();
-        private readonly Dictionary<string, dynamic> _raceSettings = new Dictionary<string, dynamic>();
 
         private readonly XmlSerializer _serializer = new XmlSerializer(typeof(Race));
 
@@ -59,6 +65,7 @@ namespace CommunityRaces
         public CommunityRaces()
         {
             Tick += OnTick;
+            KeyDown += OnKeyDown;
             Aborted += OnAbort;
             LoadRaces();
 
@@ -89,6 +96,15 @@ namespace CommunityRaces
 
             if (File.Exists("scripts\\MapEditor.dll"))
                 AttachMapEditor();
+
+            if (Config.CayoPericoLoader)
+            {
+                Function.Call((Hash)0x888C3502DBBEEF5); // load MP DLC maps
+                _island = World.CreateBlip(new Vector3(5943.567f, -6272.114f, 2f)); // invisible blip to make the map clickable at the island
+                _island.Sprite = BlipSprite.Invisible;
+                _island.Scale = 0f;
+                _island.IsShortRange = false;
+            }
         }
 
         private void AddRacesBlips()
@@ -157,6 +173,11 @@ namespace CommunityRaces
 
         private void StartRace(Race race)
         {
+            _wanted = Config.Wanted;
+            _traffic = Config.Traffic;
+            _peds = Config.Peds;
+            _laps = Config.Laps;
+
             _records.Clear();
             _ghost = null;
             var fileName = "scripts\\Races\\Replays\\" + race.FileName + ".json";
@@ -171,24 +192,24 @@ namespace CommunityRaces
             Wait(500);
             _isInRace = true;
             _currentRace = race;
-            if (_raceSettings["Laps"] > 1)
+            if (_laps > 1)
             {
                 _totalLaps = race.Checkpoints.Length;
                 List<Vector3> tmpCheckpoints = new List<Vector3>();
-                for (int i = 0; i < _raceSettings["Laps"]; i++)
+                for (int i = 0; i < _laps; i++)
                 {
                     tmpCheckpoints.AddRange(race.Checkpoints);
                 }
                 _currentRace.Checkpoints = tmpCheckpoints.ToArray();
             }
 
-            if (_raceSettings["Weather"] != "Current")
+            if (Config.Weather != "Current")
             {
-                Enum.TryParse(_raceSettings["Weather"], out Weather wout);
+                Enum.TryParse(Config.Weather, out Weather wout);
                 World.Weather = wout;
             }
 
-            switch ((string)_raceSettings["TOD"])
+            switch (Config.Time)
             {
                 case "Current":
                     break;
@@ -214,14 +235,16 @@ namespace CommunityRaces
 
             _currentVehicle?.Delete();
             _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position, spawn.Heading);
-            _currentVehicle.PrimaryColor = _vehicleColor;
-            _currentVehicle.SecondaryColor = _vehicleColor;
+            _currentVehicle.PrimaryColor = _vehiclePrimaryColor;
+            _currentVehicle.SecondaryColor = _vehicleSecondaryColor;
+            _currentVehicle.RimColor = _vehicleSecondaryColor;
+            _currentVehicle.DashboardColor = _vehicleSecondaryColor;
             Function.Call(Hash.SET_PED_INTO_VEHICLE, Game.Player.Character.Handle, _currentVehicle.Handle, (int)VehicleSeat.Driver);
             _currentVehicle.IsPersistent = false;
             _currentVehicle.FreezePosition = true;
 
             int spawnlen = 0;
-            switch (_raceSettings["Opponents"].ToString())
+            switch (Config.Opponents)
             {
                 case "Random":
                     spawnlen = RandGen.Next(1, race.SpawnPoints.Length - 1);
@@ -233,7 +256,7 @@ namespace CommunityRaces
                 case "None":
                     break;
                 default:
-                    spawnlen = Convert.ToInt32(_raceSettings["Opponents"]);
+                    spawnlen = Convert.ToInt32(Config.Opponents);
                     break;
             }
 
@@ -259,6 +282,8 @@ namespace CommunityRaces
                 tmpProp.Position = prop.Position;
                 if (prop.Dynamic)
                     tmpProp.FreezePosition = true;
+                if (prop.Texture > 0 && prop.Texture < 16)
+                    Function.Call((Hash)0x971DA0055324D033, tmpProp, prop.Texture);
                 _cleanupBag.Add(tmpProp);
             }
 
@@ -270,8 +295,11 @@ namespace CommunityRaces
             _participants.Add(_currentVehicle);
             _cleanupBag.Add(_currentVehicle);
 
-            if (!Convert.ToBoolean(_raceSettings["Traffic"]))
+            if (!_traffic)
                 Function.Call(Hash.CLEAR_AREA_OF_VEHICLES, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
+
+            if (!_peds)
+                Function.Call(Hash.CLEAR_AREA_OF_PEDS, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
         }
 
         private void EndRace()
@@ -304,6 +332,14 @@ namespace CommunityRaces
 
         public void OnTick(object sender, EventArgs e)
         {
+            Function.Call((Hash)0xF8DEE0A5600CBB93, true); // SET_MINIMAP_REVEALED
+
+            if (Config.CayoPericoLoader && Function.Call<int>(Hash.GET_INTERIOR_FROM_ENTITY, Game.Player.Character) == 0)
+            {
+                Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
+                Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, 0xc0a90510, 4700.0f, -5145.0f, 0, 0);
+            }
+
             if (Environment.TickCount >= _lasttime + 1000)
             {
                 _seconds++;
@@ -381,7 +417,7 @@ namespace CommunityRaces
                     Function.Call(Hash._ADD_TEXT_COMPONENT_STRING, "Press ~INPUT_CONTEXT~ to participate in this Community Race.");
                     Function.Call(Hash._0x238FFE5C7B0498A6, 0, 0, 1, -1);
 
-                    if (Game.IsControlJustPressed(0, Control.Context))
+                    if (Game.IsControlJustPressed(0, GTA.Control.Context))
                     {
                         Game.Player.CanControlCharacter = false;
                         Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
@@ -400,21 +436,27 @@ namespace CommunityRaces
             }
             else
             {
-                if (!_raceSettings["Wanted"])
+                if (!_wanted)
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
-                    Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)Control.VehicleExit);
-                if (Game.IsControlJustPressed(0, Control.VehicleExit))
+                    Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
+                if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
                 }
 
-                if (!Convert.ToBoolean(_raceSettings["Traffic"]))
+                if (!_traffic)
                 {
                     Function.Call(Hash.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, 0f);
                     Function.Call(Hash.SET_RANDOM_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, 0f);
                     Function.Call(Hash.SET_PARKED_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, 0f);
+                }
+
+                if (!_peds)
+                {
+                    Function.Call(Hash.SET_PED_DENSITY_MULTIPLIER_THIS_FRAME, 0f);
+                    Function.Call(Hash.SET_SCENARIO_PED_DENSITY_MULTIPLIER_THIS_FRAME, 0f, 0f);
                 }
 
                 var res = UIMenu.GetScreenResolutionMaintainRatio();
@@ -441,13 +483,13 @@ namespace CommunityRaces
                     new UIResText(value, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (2 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
                     new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (2 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
 
-                    if (_raceSettings["Laps"] > 1)
+                    if (_laps > 1)
                     {
                         int playerCheckpoint = _currentRace.Checkpoints.Length - _checkpoints.Count;
                         int currentLap = Convert.ToInt32(Math.Floor(playerCheckpoint / (decimal)_totalLaps)) + 1;
 
                         new UIResText("LAP", new Point(Convert.ToInt32(res.Width) - safe.X - 180, Convert.ToInt32(res.Height) - safe.Y - (90 + (3 * interval))), 0.3f, Color.White).Draw();
-                        new UIResText(currentLap + "/" + _raceSettings["Laps"], new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (3 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
+                        new UIResText(currentLap + "/" + _laps, new Point(Convert.ToInt32(res.Width) - safe.X - 20, Convert.ToInt32(res.Height) - safe.Y - (102 + (3 * interval))), 0.5f, Color.White, Font.ChaletLondon, UIResText.Alignment.Right).Draw();
                         new Sprite("timerbars", "all_black_bg", new Point(Convert.ToInt32(res.Width) - safe.X - 248, Convert.ToInt32(res.Height) - safe.Y - (100 + (3 * interval))), new Size(250, 37), 0f, Color.FromArgb(200, 255, 255, 255)).Draw();
                     }
 
@@ -529,7 +571,24 @@ namespace CommunityRaces
                             score = 0;
                         _passed = new MissionPassedScreen(_currentRace.Name, score, score > 50 ? score > 90 ? MissionPassedScreen.Medal.Gold : MissionPassedScreen.Medal.Silver : MissionPassedScreen.Medal.Bronze);
                         _passed.AddItem("Time Elapsed", FormatTime(_seconds - _missionStart), MissionPassedScreen.TickboxState.None);
-                        _passed.AddItem("Position", position + "/" + peoplecount, position == 1 ? MissionPassedScreen.TickboxState.Tick : MissionPassedScreen.TickboxState.Empty);
+                        if (peoplecount > 1)
+                        {
+                            _passed.AddItem("Position", position + "/" + peoplecount, position == 1 ? MissionPassedScreen.TickboxState.Tick : MissionPassedScreen.TickboxState.Empty);
+                            if (position <= 3)
+                            {
+                                var reward = position == 1 ? 50000 : position == 2 ? 30000 : 10000;
+                                _passed.AddItem("Reward", $"${reward}", MissionPassedScreen.TickboxState.None);
+                                Game.Player.Money += reward;
+                            }
+                        }
+                        if (_replay.Time == 0 || _seconds - _missionStart < _replay.Time)
+                        {
+                            _passed.AddItem("New Record!", "", MissionPassedScreen.TickboxState.Tick);
+                            if (!Directory.Exists("scripts\\Races\\Replays"))
+                                Directory.CreateDirectory("scripts\\Races\\Replays");
+                            using (StreamWriter file = File.CreateText("scripts\\Races\\Replays\\" + _currentRace.FileName + ".json"))
+                                new JsonSerializer().Serialize(file, new Replay(_seconds - _missionStart, (uint)_vehicleHash, _records.ToArray()));
+                        }
                         _passed.OnContinueHit += () =>
                         {
                             Game.FadeScreenOut(1000);
@@ -545,20 +604,11 @@ namespace CommunityRaces
                         };
                         _passed.Show();
                         _isInRace = false;
-
-                        if (_replay.Time == 0 || _seconds - _missionStart < _replay.Time)
-                        {
-                            if (!Directory.Exists("scripts\\Races\\Replays"))
-                                Directory.CreateDirectory("scripts\\Races\\Replays");
-
-                            using (StreamWriter file = File.CreateText("scripts\\Races\\Replays\\" + _currentRace.FileName + ".json"))
-                                new JsonSerializer().Serialize(file, new Replay(_seconds - _missionStart, (uint)_vehicleHash, _records.ToArray()));
-                        }
                     }
                 }
             }
 
-            if (_ghost != null)
+            if (_ghost != null && Config.Collision == false)
             {
                 foreach (Vehicle vehicle in World.GetNearbyVehicles(_ghost.Vehicle.Position, 50f))
                     if (vehicle != _ghost.Vehicle)
@@ -575,12 +625,24 @@ namespace CommunityRaces
             }
         }
 
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Config.TeleportKey)
+                if (Game.IsWaypointActive)
+                    Helpers.Teleport(World.GetWaypointPosition());
+                else
+                    UI.Notify("Select teleport destination");
+        }
+
         private void OnAbort(object sender, EventArgs e)
         {
             Tick -= OnTick;
+            KeyDown -= OnKeyDown;
             EndRace();
             RemoveRacesBlips();
             _races.Clear();
+            if (Config.CayoPericoLoader)
+                _island.Remove();
         }
 
         public string FormatTime(uint seconds)
@@ -613,6 +675,7 @@ namespace CommunityRaces
                     Hash = props[i].Hash,
                     Position = props[i].Position,
                     Rotation = props[i].Rotation,
+                    Texture = props[i].Texture
                 };
             }
             tmpRace.DecorativeProps = tmpProps;
@@ -633,88 +696,100 @@ namespace CommunityRaces
         {
             GUI.MainMenu.Clear();
             GUI.MainMenu.SetBannerType(new UIResRectangle());
-            _raceSettings.Clear();
 
-            _raceSettings["TOD"] = "Current";
-            _raceSettings["Weather"] = "Current";
-            _raceSettings["Wanted"] = false;
-            _raceSettings["Opponents"] = "Random";
-            _raceSettings["Traffic"] = true;
-            _raceSettings["Laps"] = 1;
-
-            _vehicleHash = race.AvailableVehicles[0];
+            List<dynamic> vehicles = new List<dynamic>();
+            race.AvailableVehicles.ToList().ForEach(x => vehicles.Add(x.ToString()));
+            int selectedVehicle = vehicles.IndexOf(Config.Vehicle);
+            if (selectedVehicle == -1) selectedVehicle = 0;
+            _vehicleHash = race.AvailableVehicles[selectedVehicle];
             _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
-            _vehicleColor = _previewVehicle.PrimaryColor;
+            SetVehicleColors();
             _previewVehicle.IsPersistent = false;
 
             List<dynamic> timeList = new List<dynamic> { "Current", "Sunrise", "Day", "Sunset", "Night" };
-            var timeItem = new UIMenuListItem("Time of Day", timeList, 0);
+            var timeItem = new UIMenuListItem("Time of Day", timeList, timeList.IndexOf(Config.Time));
             timeItem.OnListChanged += (item, index) =>
             {
-                _raceSettings["TOD"] = item.Items[index];
+                Config.Time = item.Items[index].ToString();
             };
 
             var weatherList = new List<dynamic> { "Current" };
             Enum.GetNames(typeof(Weather)).ToList().ForEach(w => weatherList.Add(w));
-            var weatherItem = new UIMenuListItem("Weather", weatherList, 0);
+            var weatherItem = new UIMenuListItem("Weather", weatherList, weatherList.IndexOf(Config.Weather));
             weatherItem.OnListChanged += (item, index) =>
             {
-                _raceSettings["Weather"] = item.Items[index];
+                Config.Weather = item.Items[index].ToString();
             };
 
-            var copItem = new UIMenuCheckboxItem("Wanted Levels", false);
+            var copItem = new UIMenuCheckboxItem("Wanted Levels", Config.Wanted);
             copItem.CheckboxEvent += (i, checkd) =>
             {
-                _raceSettings["Wanted"] = checkd;
+                Config.Wanted = checkd;
             };
 
             var opponentsList = new List<dynamic> { "Random", "Ghost", "None" };
-            Enumerable.Range(1, race.SpawnPoints.Length - 1).ToList().ForEach(n => opponentsList.Add(n));
-            var opponentsItem = new UIMenuListItem("Opponents", opponentsList, 0);
+            Enumerable.Range(1, race.SpawnPoints.Length - 1).ToList().ForEach(n => opponentsList.Add(n.ToString()));
+            if (!opponentsList.Contains(Config.Opponents))
+                Config.Opponents = opponentsList.Last().ToString();
+            var opponentsItem = new UIMenuListItem("Opponents", opponentsList, opponentsList.IndexOf(Config.Opponents));
             opponentsItem.OnListChanged += (item, index) =>
             {
-                _raceSettings["Opponents"] = item.Items[index];
+                Config.Opponents = item.Items[index].ToString();
             };
 
-            var trafficItem = new UIMenuCheckboxItem("Traffic", true);
+            var trafficItem = new UIMenuCheckboxItem("Traffic", Config.Traffic);
             trafficItem.CheckboxEvent += (i, checkd) =>
             {
-                _raceSettings["Traffic"] = checkd;
+                Config.Traffic = checkd;
             };
 
-            List<dynamic> tmpList = new List<dynamic>();
-            race.AvailableVehicles.ToList().ForEach(x => tmpList.Add(x));
-            var carItem = new UIMenuListItem("Vehicle", tmpList, 0);
+            var pedsItem = new UIMenuCheckboxItem("Pedestrians", Config.Peds);
+            pedsItem.CheckboxEvent += (i, checkd) =>
+            {
+                Config.Peds = checkd;
+            };
+
+            var carItem = new UIMenuListItem("Vehicle", vehicles, selectedVehicle);
             carItem.OnListChanged += (item, index) =>
             {
                 _vehicleHash = race.AvailableVehicles[index];
                 _previewVehicle?.Delete();
                 _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
                 if (_previewVehicle == null) return;
-                _previewVehicle.PrimaryColor = _vehicleColor;
-                _previewVehicle.SecondaryColor = _vehicleColor;
+                SetVehicleColors();
                 _previewVehicle.IsPersistent = false;
+                Config.Vehicle = _vehicleHash.ToString();
             };
 
-            List<dynamic> colors = new List<dynamic>
+            List<dynamic> colors = new List<dynamic> { "Random" };
+            Enum.GetValues(typeof(VehicleColor)).Cast<VehicleColor>().ToList().ForEach(c => colors.Add(c));
+            int selectedColor = 0;
+            if (Enum.TryParse(Config.PrimaryColor, out VehicleColor color))
+                selectedColor = colors.IndexOf(color);
+            var primaryColorItem = new UIMenuListItem("Color 1", colors, selectedColor);
+            primaryColorItem.OnListChanged += (item, index) =>
             {
-                VehicleColor.MatteYellow,
-                VehicleColor.Orange,
-                VehicleColor.MatteRed,
-                VehicleColor.HotPink,
-                VehicleColor.MattePurple,
-                VehicleColor.MatteDarkBlue,
-                VehicleColor.Blue,
-                VehicleColor.EpsilonBlue,
-                VehicleColor.MatteLimeGreen,
-                VehicleColor.Green,
+                if (index > 0)
+                {
+                    _vehiclePrimaryColor = (VehicleColor)item.Items[index];
+                    _previewVehicle.PrimaryColor = _vehiclePrimaryColor;
+                }
+                Config.PrimaryColor = item.Items[index].ToString();
             };
-            var colorItem = new UIMenuListItem("Color", colors, 0);
-            colorItem.OnListChanged += (ite, index) =>
+            selectedColor = 0;
+            if (Enum.TryParse(Config.SecondaryColor, out color))
+                selectedColor = colors.IndexOf(color);
+            var secondaryColorItem = new UIMenuListItem("Color 2", colors, selectedColor);
+            secondaryColorItem.OnListChanged += (item, index) =>
             {
-                Enum.TryParse(ite.Items[index].ToString(), out _vehicleColor);
-                _previewVehicle.PrimaryColor = _vehicleColor;
-                _previewVehicle.SecondaryColor = _vehicleColor;
+                if (index > 0)
+                {
+                    _vehicleSecondaryColor = (VehicleColor)item.Items[index];
+                    _previewVehicle.SecondaryColor = _vehicleSecondaryColor;
+                    _previewVehicle.RimColor = _vehicleSecondaryColor;
+                    _previewVehicle.DashboardColor = _vehicleSecondaryColor;
+                }
+                Config.SecondaryColor = item.Items[index].ToString();
             };
 
             var confimItem = new UIMenuItem("Start Race");
@@ -739,23 +814,45 @@ namespace CommunityRaces
             GUI.MainMenu.AddItem(timeItem);
             GUI.MainMenu.AddItem(weatherItem);
             GUI.MainMenu.AddItem(copItem);
-            GUI.MainMenu.AddItem(carItem);
-            GUI.MainMenu.AddItem(colorItem);
-            GUI.MainMenu.AddItem(opponentsItem);
             GUI.MainMenu.AddItem(trafficItem);
+            GUI.MainMenu.AddItem(pedsItem);
+            GUI.MainMenu.AddItem(carItem);
+            GUI.MainMenu.AddItem(primaryColorItem);
+            GUI.MainMenu.AddItem(secondaryColorItem);
+            GUI.MainMenu.AddItem(opponentsItem);
             if (race.LapsAvailable)
             {
                 var lapList = new List<dynamic>();
                 Enumerable.Range(1, 20).ToList().ForEach(n => lapList.Add(n));
-                var lapItem = new UIMenuListItem("Laps", lapList, 0);
+                var lapItem = new UIMenuListItem("Laps", lapList, lapList.IndexOf(Config.Laps));
                 lapItem.OnListChanged += (item, index) =>
                 {
-                    _raceSettings["Laps"] = item.Items[index];
+                    Config.Laps = (int)item.Items[index];
                 };
                 GUI.MainMenu.AddItem(lapItem);
             }
             GUI.MainMenu.AddItem(confimItem);
             GUI.MainMenu.RefreshIndex();
+            GUI.MainMenu.CurrentSelection = race.LapsAvailable ? 10 : 9;
+        }
+
+        private void SetVehicleColors()
+        {
+            if (Enum.TryParse(Config.PrimaryColor, out VehicleColor color))
+            {
+                _vehiclePrimaryColor = color;
+                _previewVehicle.PrimaryColor = color;
+            }
+            else _vehiclePrimaryColor = _previewVehicle.PrimaryColor;
+
+            if (Enum.TryParse(Config.SecondaryColor, out color))
+            {
+                _vehicleSecondaryColor = color;
+                _previewVehicle.SecondaryColor = color;
+                _previewVehicle.RimColor = color;
+                _previewVehicle.DashboardColor = color;
+            }
+            else _vehicleSecondaryColor = _previewVehicle.SecondaryColor;
         }
     }
 }

@@ -8,5 +8,6 @@ namespace CommunityRaces
         public Vector3 Rotation;
         public int Hash;
         public bool Dynamic;
+        public int Texture;
     }
 }

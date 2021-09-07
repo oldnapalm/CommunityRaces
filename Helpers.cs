@@ -1,6 +1,7 @@
 ﻿using System;
 using GTA;
 using GTA.Math;
+using GTA.Native;
 
 namespace CommunityRaces
 {
@@ -79,6 +80,35 @@ namespace CommunityRaces
         public static float LinearFloatLerp(float start, float end, int currentTime, int duration)
         {
             return (end - start) * currentTime / duration + start;
+        }
+
+        public static void Teleport(Vector3 location)
+        {
+            if (Config.CayoPericoLoader)
+            {
+                var island = location.DistanceTo2D(new Vector2(5031.428f, -5150.907f)) < 2000f;
+                Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", island); // island hopper
+                Function.Call((Hash)0xF74B1FFA4A15FBEA, island); // path nodes
+            }
+
+            int i = 0;
+            float groundHeight;
+            location.Z = -50;
+            do
+            {
+                Script.Wait(50);
+                groundHeight = World.GetGroundHeight(location);
+                if (groundHeight == 0)
+                    location.Z += 50;
+                else
+                    location.Z = groundHeight;
+                if (Game.Player.Character.CurrentVehicle != null)
+                    Game.Player.Character.CurrentVehicle.Position = location;
+                else
+                    Game.Player.Character.Position = location;
+                i++;
+            }
+            while (groundHeight == 0 && i < 20);
         }
     }
 }

@@ -66,6 +66,7 @@
     <Compile Include="Replay.cs" />
     <Compile Include="Rival.cs" />
     <Compile Include="SavedProp.cs" />
+    <Compile Include="Config.cs" />
     <Compile Include="SpawnPoint.cs" />
   </ItemGroup>
   <ItemGroup>
