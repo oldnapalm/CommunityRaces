@@ -99,8 +99,8 @@ namespace CommunityRaces
 
             if (Config.CayoPericoLoader)
             {
-                Function.Call((Hash)0x888C3502DBBEEF5); // load MP DLC maps
-                _island = World.CreateBlip(new Vector3(5943.567f, -6272.114f, 2f)); // invisible blip to make the map clickable at the island
+                // invisible blip to make the map clickable at the island
+                _island = World.CreateBlip(new Vector3(5943.567f, -6272.114f, 2f));
                 _island.Sprite = BlipSprite.Invisible;
                 _island.Scale = 0f;
                 _island.IsShortRange = false;

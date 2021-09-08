@@ -82,13 +82,27 @@ namespace CommunityRaces
             return (end - start) * currentTime / duration + start;
         }
 
+        public const ulong ON_ENTER_MP = 0x0888C3502DBBEEF5;
+        public const ulong ON_ENTER_SP = 0xD7C10C4A637992C9;
+        public const ulong SET_ISLAND_HOPPER_ENABLED = 0x9A9D1BA639675CF1;
+        public const ulong SET_AI_GLOBAL_PATH_NODES_TYPE = 0xF74B1FFA4A15FBEA;
+
         public static void Teleport(Vector3 location)
         {
             if (Config.CayoPericoLoader)
             {
-                var island = location.DistanceTo2D(new Vector2(5031.428f, -5150.907f)) < 2000f;
-                Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", island); // island hopper
-                Function.Call((Hash)0xF74B1FFA4A15FBEA, island); // path nodes
+                if (location.DistanceTo2D(new Vector2(5031.428f, -5150.907f)) < 2000f)
+                {
+                    Function.Call((Hash)ON_ENTER_MP);
+                    Function.Call((Hash)SET_ISLAND_HOPPER_ENABLED, "HeistIsland", true);
+                    Function.Call((Hash)SET_AI_GLOBAL_PATH_NODES_TYPE, 1);
+                }
+                else
+                {
+                    Function.Call((Hash)ON_ENTER_SP);
+                    Function.Call((Hash)SET_ISLAND_HOPPER_ENABLED, "HeistIsland", false);
+                    Function.Call((Hash)SET_AI_GLOBAL_PATH_NODES_TYPE, 0);
+                }
             }
 
             int i = 0;
