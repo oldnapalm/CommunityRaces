@@ -505,7 +505,7 @@ namespace CommunityRaces
                 for (int i = 0; i < _rivalCheckpointStatus.Count; i++)
                 {
                     Tuple<Rival, int> tuple = _rivalCheckpointStatus[i];
-                    if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 20f))
+                    if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 50f))
                     {
                         tuple.Item1.Character.Task.ClearAll();
                         if (_currentRace.Checkpoints.Length <= tuple.Item2 + 1)
