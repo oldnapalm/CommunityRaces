@@ -109,14 +109,16 @@ namespace CommunityRaces
 
         private void AddRacesBlips()
         {
-            foreach (RaceBlip race in _races)
-                race.Add();
+            if (Config.RacesBlips)
+                foreach (RaceBlip race in _races)
+                    race.Add();
         }
 
         private void RemoveRacesBlips()
         {
-            foreach (RaceBlip race in _races)
-                race.Remove();
+            if (Config.RacesBlips)
+                foreach (RaceBlip race in _races)
+                    race.Remove();
         }
 
         /// <summary>
@@ -242,6 +244,11 @@ namespace CommunityRaces
             Function.Call(Hash.SET_PED_INTO_VEHICLE, Game.Player.Character.Handle, _currentVehicle.Handle, (int)VehicleSeat.Driver);
             _currentVehicle.IsPersistent = false;
             _currentVehicle.FreezePosition = true;
+
+            if (Config.Radio == "RadioOff")
+                Function.Call(Hash.SET_VEH_RADIO_STATION, _currentVehicle.Handle, "OFF");
+            else
+                SetRadioStation();
 
             int spawnlen = 0;
             switch (Config.Opponents)
@@ -792,6 +799,19 @@ namespace CommunityRaces
                 Config.SecondaryColor = item.Items[index].ToString();
             };
 
+            SetRadioStation();
+            var radioList = new List<dynamic> { "Random" };
+            Enum.GetValues(typeof(RadioStation)).Cast<RadioStation>().ToList().ForEach(r => { if (r != RadioStation.Unknown) radioList.Add(r); });
+            int selectedRadio = 0;
+            if (Enum.TryParse(Config.Radio, out RadioStation radio))
+                selectedRadio = radioList.IndexOf(radio);
+            var radioItem = new UIMenuListItem("Radio", radioList, selectedRadio);
+            radioItem.OnListChanged += (item, index) =>
+            {
+                Config.Radio = item.Items[index].ToString();
+                SetRadioStation();
+            };
+
             var confimItem = new UIMenuItem("Start Race");
             confimItem.Activated += (item, index) =>
             {
@@ -819,6 +839,7 @@ namespace CommunityRaces
             GUI.MainMenu.AddItem(carItem);
             GUI.MainMenu.AddItem(primaryColorItem);
             GUI.MainMenu.AddItem(secondaryColorItem);
+            GUI.MainMenu.AddItem(radioItem);
             GUI.MainMenu.AddItem(opponentsItem);
             if (race.LapsAvailable)
             {
@@ -833,7 +854,7 @@ namespace CommunityRaces
             }
             GUI.MainMenu.AddItem(confimItem);
             GUI.MainMenu.RefreshIndex();
-            GUI.MainMenu.CurrentSelection = race.LapsAvailable ? 10 : 9;
+            GUI.MainMenu.CurrentSelection = race.LapsAvailable ? 11 : 10;
         }
 
         private void SetVehicleColors()
@@ -853,6 +874,12 @@ namespace CommunityRaces
                 _previewVehicle.DashboardColor = color;
             }
             else _vehicleSecondaryColor = _previewVehicle.SecondaryColor;
+        }
+
+        private void SetRadioStation()
+        {
+            if (Enum.TryParse(Config.Radio, out RadioStation radio))
+                Game.RadioStation = radio;
         }
     }
 }

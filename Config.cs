@@ -10,6 +10,7 @@ namespace CommunityRaces
         public static int Opacity;
         public static bool Collision;
         public static bool CayoPericoLoader;
+        public static bool RacesBlips;
         public static Keys TeleportKey;
 
         static Config()
@@ -21,6 +22,7 @@ namespace CommunityRaces
             Opacity = o * 51;
             Collision = _settings.GetValue("Ghost", "Collision", false);
             CayoPericoLoader = _settings.GetValue("Main", "CayoPericoLoader", true);
+            RacesBlips = _settings.GetValue("Main", "RacesBlips", true);
             TeleportKey = (Keys)Enum.Parse(typeof(Keys), _settings.GetValue("Main", "TeleportKey", "F8"), true);
         }
 
@@ -98,6 +100,19 @@ namespace CommunityRaces
             set
             {
                 _settings.SetValue<string>("Main", "SecondaryColor", value);
+                _settings.Save();
+            }
+        }
+
+        public static string Radio
+        {
+            get
+            {
+                return _settings.GetValue<string>("Main", "Radio", "Random");
+            }
+            set
+            {
+                _settings.SetValue<string>("Main", "Radio", value);
                 _settings.Save();
             }
         }
