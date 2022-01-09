@@ -50,6 +50,7 @@ namespace CommunityRaces
         private Replay _replay;
         private Ghost _ghost;
         private readonly Blip _island;
+        private SpawnPoint _respawnPoint;
 
         private readonly List<RaceBlip> _races = new List<RaceBlip>();
         private readonly List<Entity> _cleanupBag = new List<Entity>();
@@ -70,6 +71,16 @@ namespace CommunityRaces
             LoadRaces();
 
             _quitMenu = new UIMenu("", "~r~ARE YOU SURE YOU WANT TO QUIT?", new Point(0, -107));
+            var ritem = new UIMenuItem("Respawn at last checkpoint.");
+            ritem.Activated += (item, index) =>
+            {
+                _quitMenu.Visible = false;
+                Game.Player.Character.SetIntoVehicle(_currentVehicle, VehicleSeat.Driver);
+                _currentVehicle.Position = _respawnPoint.Position;
+                _currentVehicle.Heading = _respawnPoint.Heading;
+                _currentVehicle.Repair();
+            };
+            _quitMenu.AddItem(ritem);
             var qitem = new UIMenuItem("Quit current race.");
             qitem.Activated += (item, index) =>
             {
@@ -234,6 +245,7 @@ namespace CommunityRaces
             int spawnId = RandGen.Next(availalbleSpawnPoints.Count);
             var spawn = availalbleSpawnPoints[spawnId];
             availalbleSpawnPoints.RemoveAt(spawnId);
+            _respawnPoint = spawn;
 
             _currentVehicle?.Delete();
             _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position, spawn.Heading);
@@ -557,6 +569,8 @@ namespace CommunityRaces
                 {
                     Function.Call(Hash.REQUEST_SCRIPT_AUDIO_BANK, "HUD_MINI_GAME_SOUNDSET", true);
                     Function.Call(Hash.PLAY_SOUND_FRONTEND, 0, "CHECKPOINT_NORMAL", "HUD_MINI_GAME_SOUNDSET");
+                    _respawnPoint.Position = _checkpoints[0];
+                    _respawnPoint.Heading = Game.Player.Character.Heading;
                     _checkpoints.RemoveAt(0);
                     _nextBlip?.Remove();
                     _secondBlip?.Remove();

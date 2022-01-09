@@ -39,6 +39,7 @@
     <Reference Include="NativeUI">
       <HintPath>D:\Grand Theft Auto V\Scripts\NativeUI.dll</HintPath>
     </Reference>
+    <Reference Include="netstandard" />
     <Reference Include="Newtonsoft.Json">
       <HintPath>D:\Grand Theft Auto V\Scripts\Newtonsoft.Json.dll</HintPath>
     </Reference>
