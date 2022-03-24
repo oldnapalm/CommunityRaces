@@ -89,7 +89,7 @@ namespace CommunityRaces
                 Game.FadeScreenOut(500);
                 Wait(1000);
                 Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
-                EndRace();
+                EndRace(true);
                 Game.FadeScreenIn(500);
                 AddRacesBlips();
             };
@@ -312,7 +312,6 @@ namespace CommunityRaces
             Wait(500);
             _countdown = 5;
             _participants.Add(_currentVehicle);
-            _cleanupBag.Add(_currentVehicle);
 
             if (!_traffic)
                 Function.Call(Hash.CLEAR_AREA_OF_VEHICLES, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
@@ -321,7 +320,7 @@ namespace CommunityRaces
                 Function.Call(Hash.CLEAR_AREA_OF_PEDS, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
         }
 
-        private void EndRace()
+        private void EndRace(bool reset)
         {
             _isInRace = false;
             _currentRace = null;
@@ -329,6 +328,8 @@ namespace CommunityRaces
             _secondBlip?.Remove();
             _nextBlip?.Remove();
             _checkpoints.Clear();
+            if (reset)
+                _currentVehicle?.Delete();
             foreach (Entity entity in _cleanupBag)
             {
                 entity?.Delete();
@@ -347,6 +348,23 @@ namespace CommunityRaces
             _records.Clear();
             _ghost?.Delete();
             _ghost = null;
+        }
+
+        private void CloseMissionPassedScreen(bool reset)
+        {
+            Game.FadeScreenOut(1000);
+            Wait(1000);
+            Function.Call(Hash._STOP_SCREEN_EFFECT, "HeistCelebPass");
+            if (reset)
+                Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
+            else if (Game.Player.Character.IsInVehicle())
+                Game.Player.Character.CurrentVehicle.HandbrakeOn = false;
+            Game.Player.CanControlCharacter = true;
+            World.RenderingCamera = null;
+            EndRace(reset);
+            _passed = null;
+            Game.FadeScreenIn(1500);
+            AddRacesBlips();
         }
 
         public void OnTick(object sender, EventArgs e)
@@ -612,16 +630,11 @@ namespace CommunityRaces
                         }
                         _passed.OnContinueHit += () =>
                         {
-                            Game.FadeScreenOut(1000);
-                            Wait(1000);
-                            Function.Call(Hash._STOP_SCREEN_EFFECT, "HeistCelebPass");
-                            Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
-                            Game.Player.CanControlCharacter = true;
-                            World.RenderingCamera = null;
-                            EndRace();
-                            _passed = null;
-                            Game.FadeScreenIn(1500);
-                            AddRacesBlips();
+                            CloseMissionPassedScreen(true);
+                        };
+                        _passed.OnCancelHit += () =>
+                        {
+                            CloseMissionPassedScreen(false);
                         };
                         _passed.Show();
                         _isInRace = false;
@@ -659,7 +672,7 @@ namespace CommunityRaces
         {
             Tick -= OnTick;
             KeyDown -= OnKeyDown;
-            EndRace();
+            EndRace(true);
             RemoveRacesBlips();
             _races.Clear();
             if (Config.CayoPericoLoader)

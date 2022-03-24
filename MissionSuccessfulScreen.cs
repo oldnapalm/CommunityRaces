@@ -13,6 +13,7 @@ namespace CommunityRaces
     public class MissionPassedScreen
     {
         public event EmptyArgs OnContinueHit;
+        public event EmptyArgs OnCancelHit;
         public string Title { get; set; }
 
         private List<Tuple<string, string, TickboxState>> _items = new List<Tuple<string, string, TickboxState>>();
@@ -96,13 +97,19 @@ namespace CommunityRaces
             scaleform.CallFunction("TOGGLE_MOUSE_BUTTONS", 0);
             scaleform.CallFunction("CREATE_CONTAINER");
 
-            scaleform.CallFunction("SET_DATA_SLOT", 0, Function.Call<string>(Hash._0x0499D7B09FC9B407, 2, (int)Control.FrontendAccept, 0), "Continue");
+            scaleform.CallFunction("SET_DATA_SLOT", 0, Function.Call<string>(Hash._0x0499D7B09FC9B407, 2, (int)Control.FrontendAccept, 0), "Return");
+            scaleform.CallFunction("SET_DATA_SLOT", 1, Function.Call<string>(Hash._0x0499D7B09FC9B407, 2, (int)Control.FrontendCancel, 0), "Continue");
             scaleform.CallFunction("DRAW_INSTRUCTIONAL_BUTTONS", -1);
             scaleform.Render2D();
             if (Game.IsControlJustPressed(0, Control.FrontendAccept))
             {
                 Game.PlaySound("SELECT", "HUD_FRONTEND_DEFAULT_SOUNDSET");
                 ContinueHit();
+            }
+            else if (Game.IsControlJustPressed(0, Control.FrontendCancel))
+            {
+                Game.PlaySound("SELECT", "HUD_FRONTEND_DEFAULT_SOUNDSET");
+                CancelHit();
             }
         }
 
@@ -124,6 +131,11 @@ namespace CommunityRaces
         protected virtual void ContinueHit()
         {
             OnContinueHit?.Invoke();
+        }
+
+        protected virtual void CancelHit()
+        {
+            OnCancelHit?.Invoke();
         }
     }
 }
