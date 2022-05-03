@@ -81,12 +81,10 @@ namespace CommunityRaces
             Vehicle = World.CreateVehicle(Helpers.RequestModel((int)replay.Vehicle), record.GetPosition(), record.GetRotation().Z);
             Vehicle.Quaternion = record.GetRotation();
             Vehicle.IsInvincible = true;
-            if (Config.Opacity < 255)
-                Vehicle.Alpha = Config.Opacity;
+            Vehicle.Alpha = Config.Opacity;
             Ped = World.CreateRandomPed(record.GetPosition());
             Ped.IsInvincible = true;
-            if (Config.Opacity < 255)
-                Ped.Alpha = Config.Opacity;
+            Ped.Alpha = Config.Opacity;
             Ped.SetIntoVehicle(Vehicle, VehicleSeat.Driver);
             Blip = Vehicle.AddBlip();
             Blip.Sprite = BlipSprite.Ghost;

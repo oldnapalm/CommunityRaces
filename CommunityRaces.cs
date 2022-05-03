@@ -78,6 +78,8 @@ namespace CommunityRaces
                 Game.Player.Character.SetIntoVehicle(_currentVehicle, VehicleSeat.Driver);
                 _currentVehicle.Position = _respawnPoint.Position;
                 _currentVehicle.Heading = _respawnPoint.Heading;
+                if (_currentVehicle.IsOnFire)
+                    Function.Call(Hash.STOP_ENTITY_FIRE, _currentVehicle.Handle);
                 _currentVehicle.Repair();
             };
             _quitMenu.AddItem(ritem);
