@@ -130,6 +130,19 @@ namespace CommunityRaces
             }
         }
 
+        public static int Bet
+        {
+            get
+            {
+                return _settings.GetValue("Main", "Bet", 0);
+            }
+            set
+            {
+                _settings.SetValue("Main", "Bet", value);
+                _settings.Save();
+            }
+        }
+
         public static bool Traffic
         {
             get

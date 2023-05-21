@@ -320,6 +320,9 @@ namespace CommunityRaces
 
             if (!_peds)
                 Function.Call(Hash.CLEAR_AREA_OF_PEDS, spawn.Position.X, spawn.Position.Y, spawn.Position.Z, 1000f, 0);
+
+            if (_currentRivals.Count > 0)
+                Game.Player.Money -= Config.Bet;
         }
 
         private void EndRace(bool reset)
@@ -479,7 +482,7 @@ namespace CommunityRaces
                     Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
-                if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit))
+                if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || Game.Player.Character.Position.DistanceTo(_currentVehicle.Position) > 5f))
                 {
                     _quitMenu.RefreshIndex();
                     _quitMenu.Visible = !_quitMenu.Visible;
@@ -544,7 +547,7 @@ namespace CommunityRaces
                 for (int i = 0; i < _rivalCheckpointStatus.Count; i++)
                 {
                     Tuple<Rival, int> tuple = _rivalCheckpointStatus[i];
-                    if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 50f))
+                    if (tuple.Item1.Vehicle.IsInRangeOf(_currentRace.Checkpoints[tuple.Item2], 20f))
                     {
                         tuple.Item1.Character.Task.ClearAll();
                         if (_currentRace.Checkpoints.Length <= tuple.Item2 + 1)
@@ -615,9 +618,9 @@ namespace CommunityRaces
                         if (peoplecount > 1)
                         {
                             _passed.AddItem("Position", position + "/" + peoplecount, position == 1 ? MissionPassedScreen.TickboxState.Tick : MissionPassedScreen.TickboxState.Empty);
-                            if (position <= 3)
+                            if (position == 1)
                             {
-                                var reward = position == 1 ? 50000 : position == 2 ? 30000 : 10000;
+                                var reward = Config.Bet * peoplecount;
                                 _passed.AddItem("Reward", $"${reward}", MissionPassedScreen.TickboxState.None);
                                 Game.Player.Money += reward;
                             }
@@ -773,6 +776,16 @@ namespace CommunityRaces
                 Config.Opponents = item.Items[index].ToString();
             };
 
+            List<dynamic> betList = new List<dynamic>();
+            Enumerable.Range(0, 11).ToList().ForEach(n => betList.Add($"${n * 1000}"));
+            if (!betList.Contains($"${Config.Bet}"))
+                Config.Bet = 0;
+            var betItem = new UIMenuListItem("Bet", betList, Config.Bet / 1000);
+            betItem.OnListChanged += (item, index) =>
+            {
+                Config.Bet = index * 1000;
+            };
+
             var trafficItem = new UIMenuCheckboxItem("Traffic", Config.Traffic);
             trafficItem.CheckboxEvent += (i, checkd) =>
             {
@@ -870,6 +883,7 @@ namespace CommunityRaces
             GUI.MainMenu.AddItem(secondaryColorItem);
             GUI.MainMenu.AddItem(radioItem);
             GUI.MainMenu.AddItem(opponentsItem);
+            GUI.MainMenu.AddItem(betItem);
             if (race.LapsAvailable)
             {
                 var lapList = new List<dynamic>();
@@ -883,7 +897,7 @@ namespace CommunityRaces
             }
             GUI.MainMenu.AddItem(confimItem);
             GUI.MainMenu.RefreshIndex();
-            GUI.MainMenu.CurrentSelection = race.LapsAvailable ? 11 : 10;
+            GUI.MainMenu.CurrentSelection = GUI.MainMenu.MenuItems.Count - 1;
         }
 
         private void SetVehicleColors()

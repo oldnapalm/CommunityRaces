@@ -38,7 +38,7 @@ namespace CommunityRaces
         {
             var blip = World.CreateBlip(Trigger);
             blip.IsShortRange = true;
-            blip.Sprite = BlipSprite.Race;
+            blip.Sprite = BlipSprite.RaceFinish;
             blip.Name = "Community Race: " + Name;
             Blip = blip;
         }
