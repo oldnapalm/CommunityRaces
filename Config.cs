@@ -52,11 +52,11 @@ namespace CommunityRaces
             }
         }
 
-        public static bool Wanted
+        public static int Wanted
         {
             get
             {
-                return _settings.GetValue("Main", "Wanted", true);
+                return _settings.GetValue("Main", "Wanted", 0);
             }
             set
             {

@@ -29,7 +29,7 @@ namespace CommunityRaces
         private uint _seconds = 0;
         private int _totalLaps;
         private float _oldAngle;
-        private bool _wanted;
+        private int _wanted;
         private bool _traffic;
         private bool _peds;
         private int _laps;
@@ -91,6 +91,7 @@ namespace CommunityRaces
                 Game.FadeScreenOut(500);
                 Wait(1000);
                 Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
+                Game.Player.WantedLevel = 0;
                 EndRace(true);
                 Game.FadeScreenIn(500);
                 AddRacesBlips();
@@ -361,7 +362,10 @@ namespace CommunityRaces
             Wait(1000);
             Function.Call(Hash._STOP_SCREEN_EFFECT, "HeistCelebPass");
             if (reset)
+            {
                 Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
+                Game.Player.WantedLevel = 0;
+            }
             else if (Game.Player.Character.IsInVehicle())
                 Game.Player.Character.CurrentVehicle.HandbrakeOn = false;
             Game.Player.CanControlCharacter = true;
@@ -478,8 +482,7 @@ namespace CommunityRaces
             }
             else
             {
-                if (!_wanted)
-                    Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
+                Game.Player.WantedLevel = _wanted;
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
                 if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || Game.Player.Character.Position.DistanceTo(_currentVehicle.Position) > 5f))
@@ -760,10 +763,13 @@ namespace CommunityRaces
                 Config.Weather = item.Items[index].ToString();
             };
 
-            var copItem = new UIMenuCheckboxItem("Wanted Levels", Config.Wanted);
-            copItem.CheckboxEvent += (i, checkd) =>
+            List<dynamic> wantedList = new List<dynamic> { 0, 1, 2, 3, 4, 5 };
+            if (!wantedList.Contains(Config.Wanted))
+                Config.Wanted = 0;
+            var copItem = new UIMenuListItem("Wanted Level", wantedList, Config.Wanted);
+            copItem.OnListChanged += (item, index) =>
             {
-                Config.Wanted = checkd;
+                Config.Wanted = index;
             };
 
             var opponentsList = new List<dynamic> { "Random", "Ghost", "None" };
