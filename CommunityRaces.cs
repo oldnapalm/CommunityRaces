@@ -324,6 +324,8 @@ namespace CommunityRaces
 
             if (_currentRivals.Count > 0)
                 Game.Player.Money -= Config.Bet;
+
+            Game.Player.WantedLevel = _wanted;
         }
 
         private void EndRace(bool reset)
@@ -482,7 +484,6 @@ namespace CommunityRaces
             }
             else
             {
-                Game.Player.WantedLevel = _wanted;
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
                 if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || Game.Player.Character.Position.DistanceTo(_currentVehicle.Position) > 5f))
