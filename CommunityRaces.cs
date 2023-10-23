@@ -192,7 +192,7 @@ namespace CommunityRaces
             _wanted = Config.Wanted;
             _traffic = Config.Traffic;
             _peds = Config.Peds;
-            _laps = Config.Laps;
+            _laps = race.LapsAvailable ? Config.Laps : 1;
 
             _records.Clear();
             _ghost = null;
