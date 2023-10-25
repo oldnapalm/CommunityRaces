@@ -51,6 +51,8 @@ namespace CommunityRaces
         private Ghost _ghost;
         private readonly Blip _island;
         private SpawnPoint _respawnPoint;
+        private int _lastWantedCheck;
+        private readonly Random random = new Random();
 
         private readonly List<RaceBlip> _races = new List<RaceBlip>();
         private readonly List<Entity> _cleanupBag = new List<Entity>();
@@ -325,7 +327,7 @@ namespace CommunityRaces
             if (_currentRivals.Count > 0)
                 Game.Player.Money -= Config.Bet;
 
-            Game.Player.WantedLevel = _wanted;
+            _lastWantedCheck = 0;
         }
 
         private void EndRace(bool reset)
@@ -376,6 +378,16 @@ namespace CommunityRaces
             _passed = null;
             Game.FadeScreenIn(1500);
             AddRacesBlips();
+        }
+
+        private void CheckWanted()
+        {
+            if (_wanted > 0 && Game.Player.WantedLevel == 0 && Environment.TickCount >= _lastWantedCheck + Config.WantedCheckInterval * 1000)
+            {
+                _lastWantedCheck = Environment.TickCount;
+                if (random.NextDouble() <= Config.WantedProbability / 100f)
+                    Game.Player.WantedLevel = _wanted;
+            }
         }
 
         public void OnTick(object sender, EventArgs e)
@@ -484,6 +496,8 @@ namespace CommunityRaces
             }
             else
             {
+                CheckWanted();
+
                 if (Game.Player.Character.IsInVehicle())
                     Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.VehicleExit);
                 if (Game.IsControlJustPressed(0, GTA.Control.VehicleExit) && (Game.Player.Character.IsInVehicle() || Game.Player.Character.Position.DistanceTo(_currentVehicle.Position) > 5f))

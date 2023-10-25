@@ -65,6 +65,22 @@ namespace CommunityRaces
             }
         }
 
+        public static int WantedCheckInterval
+        {
+            get
+            {
+                return _settings.GetValue("Main", "WantedCheckInterval", 10);
+            }
+        }
+
+        public static int WantedProbability
+        {
+            get
+            {
+                return _settings.GetValue("Main", "WantedProbability", 20);
+            }
+        }
+
         public static string Vehicle
         {
             get
