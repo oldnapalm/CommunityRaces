@@ -11,6 +11,9 @@ namespace CommunityRaces
         public static bool Collision;
         public static bool CayoPericoLoader;
         public static bool RacesBlips;
+        public static bool GroupBlips;
+        public static int WantedCheckInterval;
+        public static int WantedProbability;
         public static Keys TeleportKey;
 
         static Config()
@@ -23,6 +26,9 @@ namespace CommunityRaces
             Collision = _settings.GetValue("Ghost", "Collision", false);
             CayoPericoLoader = _settings.GetValue("Main", "CayoPericoLoader", true);
             RacesBlips = _settings.GetValue("Main", "RacesBlips", true);
+            GroupBlips = _settings.GetValue("Main", "GroupBlips", false);
+            WantedCheckInterval = _settings.GetValue("Main", "WantedCheckInterval", 10);
+            WantedProbability = _settings.GetValue("Main", "WantedProbability", 20);
             TeleportKey = (Keys)Enum.Parse(typeof(Keys), _settings.GetValue("Main", "TeleportKey", "F8"), true);
         }
 
@@ -62,22 +68,6 @@ namespace CommunityRaces
             {
                 _settings.SetValue("Main", "Wanted", value);
                 _settings.Save();
-            }
-        }
-
-        public static int WantedCheckInterval
-        {
-            get
-            {
-                return _settings.GetValue("Main", "WantedCheckInterval", 10);
-            }
-        }
-
-        public static int WantedProbability
-        {
-            get
-            {
-                return _settings.GetValue("Main", "WantedProbability", 20);
             }
         }
 
