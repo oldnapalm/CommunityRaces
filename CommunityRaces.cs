@@ -52,7 +52,7 @@ namespace CommunityRaces
         private readonly Blip _island;
         private SpawnPoint _respawnPoint;
         private int _lastWantedCheck;
-        private readonly Random random = new Random();
+        private bool _useOwnVehicle;
 
         private readonly List<RaceBlip> _races = new List<RaceBlip>();
         private readonly List<Entity> _cleanupBag = new List<Entity>();
@@ -92,9 +92,11 @@ namespace CommunityRaces
                 _quitMenu.Visible = false;
                 Game.FadeScreenOut(500);
                 Wait(1000);
-                Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
+                if (!_useOwnVehicle)
+                    _currentVehicle?.Delete();
+                MovePlayer(_currentRace.Trigger);
                 Game.Player.WantedLevel = 0;
-                EndRace(true);
+                EndRace();
                 Game.FadeScreenIn(500);
                 AddRacesBlips();
             };
@@ -252,14 +254,23 @@ namespace CommunityRaces
             availalbleSpawnPoints.RemoveAt(spawnId);
             _respawnPoint = spawn;
 
-            _currentVehicle?.Delete();
-            _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position, spawn.Heading);
-            _currentVehicle.PrimaryColor = _vehiclePrimaryColor;
-            _currentVehicle.SecondaryColor = _vehicleSecondaryColor;
-            _currentVehicle.RimColor = _vehicleSecondaryColor;
-            _currentVehicle.DashboardColor = _vehicleSecondaryColor;
-            Function.Call(Hash.SET_PED_INTO_VEHICLE, Game.Player.Character.Handle, _currentVehicle.Handle, (int)VehicleSeat.Driver);
-            _currentVehicle.IsPersistent = false;
+            if (_useOwnVehicle)
+            {
+                _currentVehicle = Game.Player.Character.CurrentVehicle;
+                _currentVehicle.Position = spawn.Position;
+                _currentVehicle.Heading = spawn.Heading;
+            }
+            else
+            {
+                _currentVehicle?.Delete();
+                _currentVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), spawn.Position, spawn.Heading);
+                _currentVehicle.PrimaryColor = _vehiclePrimaryColor;
+                _currentVehicle.SecondaryColor = _vehicleSecondaryColor;
+                _currentVehicle.RimColor = _vehicleSecondaryColor;
+                _currentVehicle.DashboardColor = _vehicleSecondaryColor;
+                Function.Call(Hash.SET_PED_INTO_VEHICLE, Game.Player.Character.Handle, _currentVehicle.Handle, (int)VehicleSeat.Driver);
+                _currentVehicle.IsPersistent = false;
+            }
             _currentVehicle.FreezePosition = true;
 
             if (Config.Radio == "RadioOff")
@@ -287,7 +298,11 @@ namespace CommunityRaces
             for (int i = 0; i < spawnlen; i++)
             {
                 var spid = RandGen.Next(availalbleSpawnPoints.Count);
-                Model mod = Helpers.RequestModel((int)race.AvailableVehicles[RandGen.Next(race.AvailableVehicles.Length)]);
+                Model mod;
+                if (_useOwnVehicle && RandGen.NextDouble() <= 1f / (race.AvailableVehicles.Length + 1))
+                    mod = _currentVehicle.Model;
+                else
+                    mod = Helpers.RequestModel((int)race.AvailableVehicles[RandGen.Next(race.AvailableVehicles.Length)]);
                 var riv = new Rival(availalbleSpawnPoints[spid].Position, availalbleSpawnPoints[spid].Heading, mod);
                 _participants.Add(riv.Vehicle);
                 availalbleSpawnPoints.RemoveAt(spid);
@@ -330,7 +345,7 @@ namespace CommunityRaces
             _lastWantedCheck = 0;
         }
 
-        private void EndRace(bool reset)
+        private void EndRace()
         {
             _isInRace = false;
             _currentRace = null;
@@ -338,8 +353,6 @@ namespace CommunityRaces
             _secondBlip?.Remove();
             _nextBlip?.Remove();
             _checkpoints.Clear();
-            if (reset)
-                _currentVehicle?.Delete();
             foreach (Entity entity in _cleanupBag)
             {
                 entity?.Delete();
@@ -358,6 +371,11 @@ namespace CommunityRaces
             _records.Clear();
             _ghost?.Delete();
             _ghost = null;
+            if (Game.Player.Character.IsInVehicle())
+            {
+                Game.Player.Character.CurrentVehicle.HandbrakeOn = false;
+                Game.Player.Character.CurrentVehicle.FreezePosition = false;
+            }
         }
 
         private void CloseMissionPassedScreen(bool reset)
@@ -367,14 +385,14 @@ namespace CommunityRaces
             Function.Call(Hash._STOP_SCREEN_EFFECT, "HeistCelebPass");
             if (reset)
             {
-                Game.Player.Character.Position = _currentRace.Trigger + new Vector3(4f, 0f, 0f);
+                if (!_useOwnVehicle)
+                    _currentVehicle?.Delete();
+                MovePlayer(_currentRace.Trigger);
                 Game.Player.WantedLevel = 0;
             }
-            else if (Game.Player.Character.IsInVehicle())
-                Game.Player.Character.CurrentVehicle.HandbrakeOn = false;
             Game.Player.CanControlCharacter = true;
             World.RenderingCamera = null;
-            EndRace(reset);
+            EndRace();
             _passed = null;
             Game.FadeScreenIn(1500);
             AddRacesBlips();
@@ -385,9 +403,17 @@ namespace CommunityRaces
             if (_wanted > 0 && Game.Player.WantedLevel == 0 && Environment.TickCount >= _lastWantedCheck + Config.WantedCheckInterval * 1000)
             {
                 _lastWantedCheck = Environment.TickCount;
-                if (random.NextDouble() <= Config.WantedProbability / 100f)
+                if (RandGen.NextDouble() <= Config.WantedProbability / 100f)
                     Game.Player.WantedLevel = _wanted;
             }
+        }
+
+        private void MovePlayer(Vector3 position)
+        {
+            if (Game.Player.Character.IsInVehicle())
+                Game.Player.Character.CurrentVehicle.Position = position;
+            else
+                Game.Player.Character.Position = position + new Vector3(4f, 0f, 0f);
         }
 
         public void OnTick(object sender, EventArgs e)
@@ -480,7 +506,7 @@ namespace CommunityRaces
                     if (Game.IsControlJustPressed(0, GTA.Control.Context))
                     {
                         Game.Player.CanControlCharacter = false;
-                        Game.Player.Character.Position = race.Trigger + new Vector3(4f, 0f, 0f);
+                        MovePlayer(race.Trigger);
                         using (StreamReader file = new StreamReader(race.Path))
                         {
                             var raceout = (Race)_serializer.Deserialize(file);
@@ -695,7 +721,7 @@ namespace CommunityRaces
         {
             Tick -= OnTick;
             KeyDown -= OnKeyDown;
-            EndRace(true);
+            EndRace();
             RemoveRacesBlips();
             _races.Clear();
             if (Config.CayoPericoLoader)
@@ -755,13 +781,23 @@ namespace CommunityRaces
             GUI.MainMenu.SetBannerType(new UIResRectangle());
 
             List<dynamic> vehicles = new List<dynamic>();
-            race.AvailableVehicles.ToList().ForEach(x => vehicles.Add(x.ToString()));
-            int selectedVehicle = vehicles.IndexOf(Config.Vehicle);
-            if (selectedVehicle == -1) selectedVehicle = 0;
-            _vehicleHash = race.AvailableVehicles[selectedVehicle];
-            _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
-            SetVehicleColors();
-            _previewVehicle.IsPersistent = false;
+            int selectedVehicle = 0;
+            _useOwnVehicle = Game.Player.Character.IsInVehicle();
+            if (_useOwnVehicle)
+            {
+                vehicles.Add("Current");
+                _previewVehicle = Game.Player.Character.CurrentVehicle;
+            }
+            else
+            {
+                race.AvailableVehicles.ToList().ForEach(x => vehicles.Add(x.ToString()));
+                selectedVehicle = vehicles.IndexOf(Config.Vehicle);
+                if (selectedVehicle == -1) selectedVehicle = 0;
+                _vehicleHash = race.AvailableVehicles[selectedVehicle];
+                _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
+                SetVehicleColors();
+                _previewVehicle.IsPersistent = false;
+            }
 
             List<dynamic> timeList = new List<dynamic> { "Current", "Sunrise", "Day", "Sunset", "Night" };
             var timeItem = new UIMenuListItem("Time of Day", timeList, timeList.IndexOf(Config.Time));
@@ -822,13 +858,16 @@ namespace CommunityRaces
             var carItem = new UIMenuListItem("Vehicle", vehicles, selectedVehicle);
             carItem.OnListChanged += (item, index) =>
             {
-                _vehicleHash = race.AvailableVehicles[index];
-                _previewVehicle?.Delete();
-                _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
-                if (_previewVehicle == null) return;
-                SetVehicleColors();
-                _previewVehicle.IsPersistent = false;
-                Config.Vehicle = _vehicleHash.ToString();
+                if (!_useOwnVehicle)
+                {
+                    _vehicleHash = race.AvailableVehicles[index];
+                    _previewVehicle?.Delete();
+                    _previewVehicle = World.CreateVehicle(Helpers.RequestModel((int)_vehicleHash), race.Trigger);
+                    if (_previewVehicle == null) return;
+                    SetVehicleColors();
+                    _previewVehicle.IsPersistent = false;
+                    Config.Vehicle = _vehicleHash.ToString();
+                }
             };
 
             List<dynamic> colors = new List<dynamic> { "Random" };
@@ -891,7 +930,8 @@ namespace CommunityRaces
                 World.RenderingCamera = null;
                 GUI.IsInMenu = false;
                 Game.Player.CanControlCharacter = true;
-                _previewVehicle?.Delete();
+                if (!_useOwnVehicle)
+                    _previewVehicle?.Delete();
             };
 
             GUI.MainMenu.AddItem(timeItem);
