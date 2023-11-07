@@ -206,7 +206,7 @@ namespace CommunityRaces
                     using (JsonTextReader jsonReader = new JsonTextReader(reader))
                         _replay = new JsonSerializer().Deserialize<Replay>(jsonReader);
             else
-                _replay = new Replay(0, (uint)_vehicleHash, new Record[0]);
+                _replay = new Replay(0, 0, new Record[0]);
 
             Game.FadeScreenOut(500);
             Wait(500);
@@ -675,7 +675,7 @@ namespace CommunityRaces
                             if (!Directory.Exists("scripts\\Races\\Replays"))
                                 Directory.CreateDirectory("scripts\\Races\\Replays");
                             using (StreamWriter file = File.CreateText("scripts\\Races\\Replays\\" + _currentRace.FileName + ".json"))
-                                new JsonSerializer().Serialize(file, new Replay(_seconds - _missionStart, (uint)_vehicleHash, _records.ToArray()));
+                                new JsonSerializer().Serialize(file, new Replay(_seconds - _missionStart, (uint)_currentVehicle.Model.Hash, _records.ToArray()));
                         }
                         _passed.OnContinueHit += () =>
                         {
