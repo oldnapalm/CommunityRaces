@@ -711,10 +711,36 @@ namespace CommunityRaces
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Config.TeleportKey)
+            {
                 if (Game.IsWaypointActive)
                     Helpers.Teleport(World.GetWaypointPosition());
                 else
                     UI.Notify("Select teleport destination");
+            }
+            else if (e.KeyCode == Config.BlipsKey)
+            {
+                if (!Config.RacesBlips)
+                {
+                    Config.RacesBlips = true;
+                    Config.GroupBlips = false;
+                    AddRacesBlips();
+                    UI.Notify("Blips on");
+                }
+                else if (Config.GroupBlips)
+                {
+                    RemoveRacesBlips();
+                    Config.RacesBlips = false;
+                    Config.GroupBlips = false;
+                    UI.Notify("Blips off");
+                }
+                else
+                {
+                    RemoveRacesBlips();
+                    Config.GroupBlips = true;
+                    AddRacesBlips();
+                    UI.Notify("Blips grouped");
+                }
+            }
         }
 
         private void OnAbort(object sender, EventArgs e)

@@ -10,11 +10,10 @@ namespace CommunityRaces
         public static int Opacity;
         public static bool Collision;
         public static bool CayoPericoLoader;
-        public static bool RacesBlips;
-        public static bool GroupBlips;
         public static int WantedCheckInterval;
         public static int WantedProbability;
         public static Keys TeleportKey;
+        public static Keys BlipsKey;
 
         static Config()
         {
@@ -25,11 +24,36 @@ namespace CommunityRaces
             Opacity = o * 51;
             Collision = _settings.GetValue("Ghost", "Collision", false);
             CayoPericoLoader = _settings.GetValue("Main", "CayoPericoLoader", true);
-            RacesBlips = _settings.GetValue("Main", "RacesBlips", true);
-            GroupBlips = _settings.GetValue("Main", "GroupBlips", false);
             WantedCheckInterval = _settings.GetValue("Main", "WantedCheckInterval", 10);
             WantedProbability = _settings.GetValue("Main", "WantedProbability", 20);
             TeleportKey = (Keys)Enum.Parse(typeof(Keys), _settings.GetValue("Main", "TeleportKey", "F8"), true);
+            BlipsKey = (Keys)Enum.Parse(typeof(Keys), _settings.GetValue("Main", "BlipsKey", "None"), true);
+        }
+
+        public static bool RacesBlips
+        {
+            get
+            {
+                return _settings.GetValue("Main", "RacesBlips", true);
+            }
+            set
+            {
+                _settings.SetValue("Main", "RacesBlips", value);
+                _settings.Save();
+            }
+        }
+
+        public static bool GroupBlips
+        {
+            get
+            {
+                return _settings.GetValue("Main", "GroupBlips", false);
+            }
+            set
+            {
+                _settings.SetValue("Main", "GroupBlips", value);
+                _settings.Save();
+            }
         }
 
         public static string Time
